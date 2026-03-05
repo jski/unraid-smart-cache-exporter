@@ -617,9 +617,10 @@
       },
       "transformations": [
         {
-          "id": "labelsToFields",
+          "id": "joinByField",
           "options": {
-            "mode": "columns"
+            "byField": "disk",
+            "mode": "outer"
           }
         },
         {
@@ -627,23 +628,26 @@
           "options": {
             "excludeByName": {
               "Time": true,
+              "Time 1": true,
+              "Time 2": true,
               "__name__": true,
+              "__name__ 1": true,
+              "__name__ 2": true,
               "instance": true,
+              "instance 1": true,
+              "instance 2": true,
               "job": true,
+              "job 1": true,
+              "job 2": true,
               "source_node": true,
-              "event": true
-            }
-          }
-        },
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
+              "source_node 1": true,
+              "source_node 2": true
+            },
             "renameByName": {
               "disk": "Disk",
+              "Value": "Spinning Up (24h)",
+              "Value 1": "Spinning Down (24h)",
+              "Value 2": "Read SMART (24h)",
               "Value #A": "Spinning Up (24h)",
               "Value #B": "Spinning Down (24h)",
               "Value #C": "Read SMART (24h)"
