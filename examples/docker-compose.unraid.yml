@@ -2,12 +2,11 @@ name: unraid-smart-cache-exporter
 
 services:
   unraid-smart-cache-exporter:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/jski/unraid-smart-cache-exporter:latest
     container_name: unraid-smart-cache-exporter
     restart: unless-stopped
-    network_mode: host
+    ports:
+      - "9903:9903"
     environment:
       - LISTEN_PORT=9903
       - SMART_DIR=/var/local/emhttp/smart
