@@ -7,6 +7,30 @@ import exporter
 
 
 class ExporterTests(unittest.TestCase):
+    def test_detect_syslog_timezone_name_from_tz_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tz_file = Path(tmp) / "TZ"
+            tz_file.write_text("America/New_York\n", encoding="utf-8")
+
+            detected = exporter._detect_syslog_timezone_name(
+                tz_file_paths=[tz_file],
+                localtime_paths=[],
+            )
+
+        self.assertEqual(detected, "America/New_York")
+
+    def test_detect_syslog_timezone_name_from_key_value_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tz_file = Path(tmp) / "clock"
+            tz_file.write_text('ZONE="America/Chicago"\n', encoding="utf-8")
+
+            detected = exporter._detect_syslog_timezone_name(
+                tz_file_paths=[tz_file],
+                localtime_paths=[],
+            )
+
+        self.assertEqual(detected, "America/Chicago")
+
     def test_parse_syslog_timestamp_honors_timezone(self):
         # Simulate parse at 2026-03-05 16:35:00 UTC.
         now = datetime(2026, 3, 5, 16, 35, 0, tzinfo=timezone.utc).timestamp()
