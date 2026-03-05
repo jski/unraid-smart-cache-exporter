@@ -64,7 +64,24 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "celsius"
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 45
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -1156,45 +1173,136 @@
       },
       "fieldConfig": {
         "defaults": {
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "red",
-                  "text": "persist error"
-                },
-                "1": {
-                  "color": "green",
-                  "text": "ok"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "State Source"
+            },
+            "properties": [
               {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
+                "id": "custom.width",
+                "value": 110
               }
             ]
           },
-          "unit": "none"
-        },
-        "overrides": []
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disks"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 8,
         "x": 0,
         "y": 32
       },
       "id": 13,
+      "options": {
+        "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "count by (state_source, confidence) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Spin State Confidence (Current)",
+      "type": "table",
+      "description": "Shows how many disks are currently classified by explicit vs inferred state source and confidence level.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            },
+            "renameByName": {
+              "state_source": "State Source",
+              "confidence": "Confidence",
+              "Value": "Disks"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 8,
+        "y": 32
+      },
+      "id": 14,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -1207,18 +1315,197 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "textMode": "auto"
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "min(unraid_exporter_state_persist_ok{source_node=~\"$source_node\"})",
+          "expr": "sum(increase(unraid_exporter_inferred_transitions_total{source_node=~\"$source_node\"}[24h]))",
           "refId": "A"
         }
       ],
-      "title": "Exporter State Persistence",
+      "title": "Inferred Spin-Up Transitions (24h)",
       "type": "stat",
-      "description": "Green means exporter state writes are succeeding. Red means state persistence failed on the latest scrape and lifecycle/event continuity may drift."
+      "description": "Count of inferred spin-up transitions in the last 24h. Non-zero means fallback inference is actively supplementing missing explicit spin-up logs."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Start/Stop Delta (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power-On Delta (24h)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Spinning Down (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Spinning Up (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 15,
+      "options": {
+        "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk": "Disk",
+              "Value #A": "Start/Stop Delta (24h)",
+              "Value #B": "Power-On Delta (24h)",
+              "Value #C": "Spinning Down (24h)",
+              "Value #D": "Spinning Up (24h)"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "legendFormat": "start_stop_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "legendFormat": "power_on_hours_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "spinning_down_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "spinning_up_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "D"
+        }
+      ],
+      "title": "Wake Churn Summary (24h)",
+      "type": "table",
+      "description": "Per-disk churn summary combining SMART lifecycle deltas and log-derived spin events to highlight wake-heavy disks."
     }
   ],
   "refresh": "30s",
