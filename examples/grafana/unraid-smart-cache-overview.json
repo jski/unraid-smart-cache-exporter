@@ -162,6 +162,7 @@
       "id": 2,
       "options": {
         "showHeader": true,
+        "frozenColumns": 1,
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -485,6 +486,7 @@
       "id": 7,
       "options": {
         "showHeader": true,
+        "frozenColumns": 1,
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -606,6 +608,7 @@
       "id": 8,
       "options": {
         "showHeader": true,
+        "frozenColumns": 1,
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -762,6 +765,7 @@
       "id": 9,
       "options": {
         "showHeader": true,
+        "frozenColumns": 1,
         "cellHeight": "sm",
         "footer": {
           "show": false,
