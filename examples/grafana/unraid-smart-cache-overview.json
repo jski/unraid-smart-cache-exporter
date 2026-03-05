@@ -111,14 +111,14 @@
       },
       "id": 2,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
         }
       },
       "targets": [
@@ -126,12 +126,14 @@
           "editorMode": "code",
           "expr": "unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} / 60",
           "legendFormat": "{{disk}}",
-          "range": true,
-          "refId": "A"
+          "range": false,
+          "refId": "A",
+          "instant": true,
+          "format": "table"
         }
       ],
-      "title": "SMART Snapshot Age (minutes)",
-      "type": "timeseries"
+      "title": "SMART Snapshot Age (minutes) by Disk",
+      "type": "table"
     },
     {
       "datasource": {
@@ -341,14 +343,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "clamp_min(rate(unraid_disk_reads_total{source_node=~\"$source_node\",disk=~\"$disk\"}[15m]), 0)",
+          "expr": "clamp_min(increase(unraid_disk_reads_total{source_node=~\"$source_node\",disk=~\"$disk\"}[30m]) / 1800, 0)",
           "legendFormat": "reads {{disk}}",
           "range": true,
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "clamp_min(rate(unraid_disk_writes_total{source_node=~\"$source_node\",disk=~\"$disk\"}[15m]), 0)",
+          "expr": "clamp_min(increase(unraid_disk_writes_total{source_node=~\"$source_node\",disk=~\"$disk\"}[30m]) / 1800, 0)",
           "legendFormat": "writes {{disk}}",
           "range": true,
           "refId": "B"
@@ -376,14 +378,14 @@
       },
       "id": 7,
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
         }
       },
       "targets": [
@@ -391,19 +393,41 @@
           "editorMode": "code",
           "expr": "unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}",
           "legendFormat": "power_on_hours {{disk}}",
-          "range": true,
+          "instant": true,
+          "range": false,
+          "format": "table",
           "refId": "A"
         },
         {
           "editorMode": "code",
           "expr": "unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}",
           "legendFormat": "start_stop {{disk}}",
-          "range": true,
+          "instant": true,
+          "range": false,
+          "format": "table",
           "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "legendFormat": "start_stop_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "legendFormat": "power_on_hours_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "D"
         }
       ],
-      "title": "Disk Lifecycle Counters",
-      "type": "timeseries"
+      "title": "Disk Lifecycle Counters (Current + 24h Delta)",
+      "type": "table"
     }
   ],
   "refresh": "30s",
