@@ -46,10 +46,18 @@ def _env(name: str, default: str) -> str:
     return value if value else default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name, "").strip().lower()
+    if not value:
+        return default
+    return value in {"1", "true", "yes", "on"}
+
+
 SMART_DIR = Path(_env("SMART_DIR", "/var/local/emhttp/smart"))
 DISKS_INI = Path(_env("DISKS_INI", "/var/local/emhttp/disks.ini"))
 LISTEN_HOST = _env("LISTEN_HOST", "0.0.0.0")
 LISTEN_PORT = int(_env("LISTEN_PORT", "9903"))
+EXCLUDE_NON_PRESENT = _env_bool("EXCLUDE_NON_PRESENT", False)
 
 
 def _read_text(path: Path) -> str:
@@ -171,6 +179,12 @@ def _parse_int(value: str) -> Optional[int]:
         return None
 
 
+def _is_non_present_disk(fields: Dict[str, str]) -> bool:
+    status = fields.get("status", "")
+    device = fields.get("device", "")
+    return status.startswith("DISK_NP") or not device
+
+
 def render_metrics() -> str:
     start = time.perf_counter()
     now = time.time()
@@ -267,6 +281,9 @@ def render_metrics() -> str:
                 lines.append(f'{metric}{_labels(disk=disk)} {attr.raw}')
 
     for disk, fields in sorted(disks.items()):
+        if EXCLUDE_NON_PRESENT and _is_non_present_disk(fields):
+            continue
+
         labels = _labels(
             disk=disk,
             device=fields.get("device", ""),
@@ -323,6 +340,15 @@ def parse_args() -> argparse.Namespace:
         default=LISTEN_PORT,
         help="TCP port to listen on (default from LISTEN_PORT env).",
     )
+    parser.add_argument(
+        "--exclude-non-present",
+        action=argparse.BooleanOptionalAction,
+        default=EXCLUDE_NON_PRESENT,
+        help=(
+            "Exclude non-present disk slots from disks.ini metrics "
+            "(default from EXCLUDE_NON_PRESENT env)."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -362,12 +388,13 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    global SMART_DIR, DISKS_INI, LISTEN_HOST, LISTEN_PORT
+    global SMART_DIR, DISKS_INI, LISTEN_HOST, LISTEN_PORT, EXCLUDE_NON_PRESENT
     args = parse_args()
     SMART_DIR = Path(args.smart_dir)
     DISKS_INI = Path(args.disks_ini)
     LISTEN_HOST = args.listen_host
     LISTEN_PORT = args.listen_port
+    EXCLUDE_NON_PRESENT = args.exclude_non_present
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), MetricsHandler)
     print(f"listening on {LISTEN_HOST}:{LISTEN_PORT}")
     server.serve_forever()

@@ -59,6 +59,7 @@ Example key metrics:
 - `LISTEN_PORT` (default `9903`)
 - `SMART_DIR` (default `/var/local/emhttp/smart`)
 - `DISKS_INI` (default `/var/local/emhttp/disks.ini`)
+- `EXCLUDE_NON_PRESENT` (default `false`; set `true` to omit `DISK_NP*` / empty-device slots from disk metrics)
 
 ## Notes
 
