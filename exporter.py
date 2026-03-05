@@ -69,6 +69,13 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
 SMART_DIR = Path(_env("SMART_DIR", "/var/local/emhttp/smart"))
 DISKS_INI = Path(_env("DISKS_INI", "/var/local/emhttp/disks.ini"))
 SYSLOG_PATH = Path(_env("SYSLOG_PATH", "/var/log/syslog"))
@@ -80,24 +87,116 @@ EXCLUDE_NON_PRESENT = _env_bool("EXCLUDE_NON_PRESENT", False)
 SYSLOG_TIMEZONE_NAME = _env("SYSLOG_TIMEZONE", _env("TZ", ""))
 
 
-def _resolve_syslog_timezone(tz_name: str) -> tzinfo:
-    # Prefer explicit IANA timezone for syslog parsing; fallback to container local time.
-    if tz_name:
-        try:
-            return ZoneInfo(tz_name)
-        except ZoneInfoNotFoundError:
-            pass
-    return datetime.now().astimezone().tzinfo  # type: ignore[return-value]
-
-
-SYSLOG_TIMEZONE = _resolve_syslog_timezone(SYSLOG_TIMEZONE_NAME)
-
-
-def _read_text(path: Path) -> str:
+def _valid_iana_timezone(tz_name: str) -> Optional[str]:
+    candidate = tz_name.strip()
+    if not candidate:
+        return None
     try:
-        return path.read_text(encoding="utf-8", errors="ignore")
+        ZoneInfo(candidate)
+        return candidate
+    except ZoneInfoNotFoundError:
+        return None
+
+
+def _extract_timezone_candidate(text: str) -> Optional[str]:
+    # Prefer explicit key/value formats first (e.g. ZONE="America/New_York").
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if "=" in line:
+            _, value = line.split("=", 1)
+            line = value.strip().strip('"').strip("'")
+        candidate = _valid_iana_timezone(line)
+        if candidate:
+            return candidate
+
+    # Fallback: scan free-form content for IANA-style tokens.
+    for token in re.findall(r"[A-Za-z0-9._+-]+/[A-Za-z0-9._+-]+", text):
+        candidate = _valid_iana_timezone(token)
+        if candidate:
+            return candidate
+    return None
+
+
+def _extract_timezone_from_localtime(path: Path) -> Optional[str]:
+    candidates: List[str] = []
+    try:
+        candidates.append(os.readlink(path))
     except OSError:
-        return ""
+        pass
+    try:
+        candidates.append(str(path.resolve(strict=True)))
+    except OSError:
+        pass
+
+    for raw in candidates:
+        marker = "/zoneinfo/"
+        if marker not in raw:
+            continue
+        zone = raw.split(marker, 1)[1].lstrip("/")
+        candidate = _valid_iana_timezone(zone)
+        if candidate:
+            return candidate
+    return None
+
+
+def _detect_syslog_timezone_name(
+    tz_file_paths: Optional[List[Path]] = None,
+    localtime_paths: Optional[List[Path]] = None,
+) -> Optional[str]:
+    files = tz_file_paths or [
+        Path("/host/etc/timezone"),
+        Path("/host/etc/TZ"),
+        Path("/host/boot/config/timezone"),
+        Path("/etc/timezone"),
+        Path("/etc/TZ"),
+        Path("/boot/config/timezone"),
+        Path("/host/etc/sysconfig/clock"),
+        Path("/etc/sysconfig/clock"),
+    ]
+    for path in files:
+        if not path.exists():
+            continue
+        candidate = _extract_timezone_candidate(_read_text(path))
+        if candidate:
+            return candidate
+
+    localtimes = localtime_paths or [Path("/host/etc/localtime"), Path("/etc/localtime")]
+    for path in localtimes:
+        if not path.exists():
+            continue
+        candidate = _extract_timezone_from_localtime(path)
+        if candidate:
+            return candidate
+    return None
+
+
+def _resolve_syslog_timezone_name(tz_name: str) -> str:
+    explicit = _valid_iana_timezone(tz_name)
+    if explicit:
+        return explicit
+
+    detected = _detect_syslog_timezone_name()
+    if detected:
+        return detected
+
+    local_tz = datetime.now().astimezone().tzinfo
+    return str(local_tz) if local_tz else "local"
+
+
+def _resolve_syslog_timezone(tz_name: str) -> Tuple[tzinfo, str]:
+    resolved_name = _resolve_syslog_timezone_name(tz_name)
+    candidate = _valid_iana_timezone(resolved_name)
+    if candidate:
+        return ZoneInfo(candidate), candidate
+
+    local_tz = datetime.now().astimezone().tzinfo  # type: ignore[assignment]
+    local_name = str(local_tz) if local_tz else "local"
+    return local_tz, local_name  # type: ignore[return-value]
+
+
+SYSLOG_TIMEZONE, SYSLOG_TIMEZONE_EFFECTIVE_NAME = _resolve_syslog_timezone(SYSLOG_TIMEZONE_NAME)
 
 
 def _escape(value: str) -> str:
@@ -749,7 +848,9 @@ def parse_args() -> argparse.Namespace:
         default=SYSLOG_TIMEZONE_NAME,
         help=(
             "IANA timezone for syslog timestamp parsing (e.g. America/New_York). "
-            "Defaults to SYSLOG_TIMEZONE env, then TZ env, then container local time."
+            "Defaults to SYSLOG_TIMEZONE env, then TZ env, then host timezone auto-detect "
+            "(/host/etc/TZ,/host/etc/timezone,/host/etc/localtime and local fallbacks), "
+            "then container local timezone."
         ),
     )
     parser.add_argument(
@@ -812,7 +913,8 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global SMART_DIR, DISKS_INI, SYSLOG_PATH, STATE_PATH, SYSLOG_INITIAL_TAIL_BYTES
-    global LISTEN_HOST, LISTEN_PORT, EXCLUDE_NON_PRESENT, SYSLOG_TIMEZONE_NAME, SYSLOG_TIMEZONE
+    global LISTEN_HOST, LISTEN_PORT, EXCLUDE_NON_PRESENT
+    global SYSLOG_TIMEZONE_NAME, SYSLOG_TIMEZONE, SYSLOG_TIMEZONE_EFFECTIVE_NAME
 
     args = parse_args()
     SMART_DIR = Path(args.smart_dir)
@@ -824,10 +926,11 @@ def main() -> None:
     LISTEN_PORT = args.listen_port
     EXCLUDE_NON_PRESENT = args.exclude_non_present
     SYSLOG_TIMEZONE_NAME = args.syslog_timezone
-    SYSLOG_TIMEZONE = _resolve_syslog_timezone(SYSLOG_TIMEZONE_NAME)
+    SYSLOG_TIMEZONE, SYSLOG_TIMEZONE_EFFECTIVE_NAME = _resolve_syslog_timezone(SYSLOG_TIMEZONE_NAME)
 
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), MetricsHandler)
     print(f"listening on {LISTEN_HOST}:{LISTEN_PORT}")
+    print(f"syslog timezone: {SYSLOG_TIMEZONE_EFFECTIVE_NAME}")
     server.serve_forever()
 
 

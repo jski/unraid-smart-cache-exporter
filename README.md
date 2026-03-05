@@ -82,7 +82,7 @@ Exporter self-health metrics:
 - `SMART_DIR` (default `/var/local/emhttp/smart`)
 - `DISKS_INI` (default `/var/local/emhttp/disks.ini`)
 - `SYSLOG_PATH` (default `/var/log/syslog`)
-- `SYSLOG_TIMEZONE` (default: `TZ` env if set, else container local timezone)
+- `SYSLOG_TIMEZONE` (optional explicit IANA timezone, e.g. `America/New_York`)
 - `STATE_PATH` (default `/var/lib/unraid-smart-cache-exporter/state.json`)
 - `SYSLOG_INITIAL_TAIL_BYTES` (default `4194304`)
 - `EXCLUDE_NON_PRESENT` (default `false`; set `true` to omit `DISK_NP*` / empty-device slots from disk metrics)
@@ -91,7 +91,11 @@ Exporter self-health metrics:
 
 - SMART freshness depends on Unraid's own SMART update cadence.
 - Syslog lifecycle parsing tracks a persistent cursor in `STATE_PATH` so counters do not double-count on every scrape.
-- Syslog timestamps do not include timezone; set `SYSLOG_TIMEZONE` to your Unraid host timezone (for example `America/New_York`) to avoid offset errors.
+- Syslog timestamps do not include timezone. Resolution priority is:
+  1. explicit `SYSLOG_TIMEZONE` env
+  2. `TZ` env
+  3. host timezone auto-detect (`/host/etc/TZ`, `/host/etc/timezone`, `/host/etc/localtime`, plus local fallbacks)
+  4. container local timezone
 - Event provenance is explicit in metric labels:
   - `event_source="explicit"` for parsed emhttpd lifecycle logs.
   - `event_source="inferred"` for fallback spin-up transitions inferred from disk counter deltas after a known down state.

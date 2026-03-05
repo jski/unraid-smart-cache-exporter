@@ -15,8 +15,9 @@ services:
       - SMART_DIR=/var/local/emhttp/smart
       - DISKS_INI=/var/local/emhttp/disks.ini
       - SYSLOG_PATH=/var/log/syslog
-      # Set this to your Unraid host timezone (IANA form), e.g. America/New_York.
-      - SYSLOG_TIMEZONE=America/New_York
+      # Optional explicit override (IANA form), e.g. America/New_York.
+      # If omitted, exporter auto-detects timezone from mounted host files.
+      # - SYSLOG_TIMEZONE=America/New_York
       - STATE_PATH=/var/lib/unraid-smart-cache-exporter/state.json
       - SYSLOG_INITIAL_TAIL_BYTES=4194304
       - EXCLUDE_NON_PRESENT=true
@@ -24,4 +25,6 @@ services:
       - /var/local/emhttp/smart:/var/local/emhttp/smart:ro
       - /var/local/emhttp/disks.ini:/var/local/emhttp/disks.ini:ro
       - /var/log/syslog:/var/log/syslog:ro
+      - /etc/TZ:/host/etc/TZ:ro
+      - /etc/localtime:/host/etc/localtime:ro
       - /mnt/user/appdata/unraid-smart-cache-exporter:/var/lib/unraid-smart-cache-exporter
