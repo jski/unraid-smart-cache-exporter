@@ -1052,7 +1052,9 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max(time() - unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
+          "expr": "time() - max(unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
