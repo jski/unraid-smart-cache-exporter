@@ -617,37 +617,32 @@
       },
       "transformations": [
         {
-          "id": "joinByField",
+          "id": "labelsToFields",
           "options": {
-            "byField": "disk",
-            "mode": "outer"
+            "mode": "columns"
           }
+        },
+        {
+          "id": "merge",
+          "options": {}
         },
         {
           "id": "organize",
           "options": {
             "excludeByName": {
               "Time": true,
-              "Time 1": true,
-              "Time 2": true,
               "__name__": true,
-              "__name__ 1": true,
-              "__name__ 2": true,
               "instance": true,
-              "instance 1": true,
-              "instance 2": true,
               "job": true,
-              "job 1": true,
-              "job 2": true,
-              "source_node": true,
-              "source_node 1": true,
-              "source_node 2": true
-            },
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
             "renameByName": {
               "disk": "Disk",
-              "Value": "Spinning Up (24h)",
-              "Value 1": "Spinning Down (24h)",
-              "Value 2": "Read SMART (24h)",
               "Value #A": "Spinning Up (24h)",
               "Value #B": "Spinning Down (24h)",
               "Value #C": "Read SMART (24h)"
@@ -658,7 +653,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "floor((sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
           "legendFormat": "spinning_up {{disk}}",
           "instant": true,
           "range": false,
@@ -667,7 +662,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "floor((sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
           "legendFormat": "spinning_down {{disk}}",
           "instant": true,
           "range": false,
@@ -676,7 +671,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "floor((sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"read SMART\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"read SMART\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
           "legendFormat": "read_smart {{disk}}",
           "instant": true,
           "range": false,
