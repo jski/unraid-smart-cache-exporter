@@ -70,5 +70,4 @@ Example key metrics:
 GitHub Actions workflows are included:
 
 - `.github/workflows/ci.yml` for lint + unit tests.
-- `.github/workflows/docker-build.yml` for Docker image build validation.
-- `.github/workflows/docker-publish.yml` for multi-arch GHCR image publish on `main`/tags, and PR build validation.
+- `.github/workflows/docker-publish.yml` for PR image builds and no-rebuild promotion on `main`/release tags.
