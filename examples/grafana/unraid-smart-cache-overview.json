@@ -1,0 +1,974 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_temperature_celsius{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "{{disk}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Disk Temperature",
+      "type": "timeseries",
+      "description": "Tracks last known SMART temperature per disk. Sustained high values indicate thermal stress and can shorten drive life; check cooling if temperatures trend upward."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} / 60",
+          "legendFormat": "{{disk}}",
+          "range": false,
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "title": "SMART Snapshot Age (minutes) by Disk",
+      "type": "table",
+      "description": "Shows how old each SMART snapshot is. Large age means SMART data is stale, so health/status panels may no longer reflect current disk conditions."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "count(max by (disk) ((unraid_smart_pending_sectors{source_node=~\"$source_node\"} > 0) or (unraid_smart_offline_uncorrectable{source_node=~\"$source_node\"} > 0) or (unraid_smart_reallocated_sectors{source_node=~\"$source_node\"} > 0)))",
+          "legendFormat": "disks",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Disks With SMART Issues",
+      "type": "stat",
+      "description": "Counts disks with critical SMART sector signals (pending/offline-uncorrectable/reallocated). Any non-zero value is a health warning that should be triaged."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "count(unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\"} > 86400)",
+          "legendFormat": "stale",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Stale SMART Snapshots (>24h)",
+      "type": "stat",
+      "description": "Counts disks with SMART snapshots older than 24h. Stale snapshots reduce confidence in all SMART-based inferences and alerting."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_pending_sectors{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "pending {{disk}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_reallocated_sectors{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "reallocated {{disk}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_offline_uncorrectable{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "offline_uncorrectable {{disk}}",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_udma_crc_errors{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "udma_crc {{disk}}",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "SMART Error Counters",
+      "type": "timeseries",
+      "description": "Raw SMART error counters by disk. Rising values over time are more important than one-time values and can indicate degrading media or link quality."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power-On Hours"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Start/Stop Count"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Start/Stop Delta (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power-On Delta (24h)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 7,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "device": "Device",
+              "disk": "Disk",
+              "Value #A": "Power-On Hours",
+              "Value #B": "Start/Stop Count",
+              "Value #C": "Start/Stop Delta (24h)",
+              "Value #D": "Power-On Delta (24h)"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "power_on_hours {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "start_stop {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "legendFormat": "start_stop_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "legendFormat": "power_on_hours_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "D"
+        }
+      ],
+      "title": "Disk Lifecycle Counters (Current + 24h Delta)",
+      "type": "table",
+      "description": "Lifecycle counters from SMART (current values plus 24h delta). This panel hides query evaluation time so only disk lifecycle fields are shown."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Events (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 8,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            },
+            "renameByName": {
+              "disk": "Disk",
+              "event": "Event",
+              "Value": "Events (24h)"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (disk, event) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]))",
+          "legendFormat": "{{disk}} {{event}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Disk State Event Counts (24h)",
+      "type": "table",
+      "description": "24h event update count derived from last-event timestamp changes (more resilient to exporter counter resets/replays)."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Spin State"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "-1": {
+                        "color": "gray",
+                        "text": "unknown"
+                      },
+                      "0": {
+                        "color": "green",
+                        "text": "down"
+                      },
+                      "1": {
+                        "color": "orange",
+                        "text": "up"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Spin State Age|Hours Since .*"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 9,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "spin_state {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(unraid_disk_spin_state_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "legendFormat": "spin_state_age_h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(time() - unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "legendFormat": "hrs_since_spindown {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(time() - unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "legendFormat": "hrs_since_smart_read {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "D"
+        }
+      ],
+      "title": "Current Spin State + Last Event Age (hours)",
+      "type": "table",
+      "description": "Current inferred spin state and age since key lifecycle events. This panel intentionally hides query evaluation timestamp to avoid confusion with event timestamps.",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "device": "Device",
+              "disk": "Disk",
+              "Value #A": "Spin State",
+              "Value #B": "Spin State Age",
+              "Value #C": "Hours Since Spindown",
+              "Value #D": "Hours Since SMART Read"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 8
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 24
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(unraid_disk_event_total{source_node=~\"$source_node\",event=\"spinning up\",disk=~\"$disk\"}[24h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Spin-Up Events (24h)",
+      "type": "stat",
+      "description": "Total spin-up events in the last 24h. Higher values usually mean repeated wake triggers (scheduled tasks, scans, or app access) and more wear."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 24
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(unraid_exporter_log_scan_errors_total{source_node=~\"$source_node\"}[30m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Log Scan Errors (30m)",
+      "type": "stat",
+      "description": "Exporter log-scan errors in the last 30 minutes. Non-zero means lifecycle event parsing is degraded and state metrics may be incomplete."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 600
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 24
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(time() - unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Last Log Scan Age (s)",
+      "type": "stat",
+      "description": "Seconds since exporter last successfully scanned lifecycle logs. Growing/stale values indicate log ingestion has stalled and freshness is reduced."
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": [
+    "unraid",
+    "smart",
+    "disk-health"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "unraid",
+          "value": "unraid"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(unraid_smart_cache_up, source_node)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Source Node",
+        "multi": false,
+        "name": "source_node",
+        "options": [],
+        "query": {
+          "query": "label_values(unraid_smart_cache_up, source_node)",
+          "refId": "Prometheus-source_node"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(unraid_smart_temperature_celsius{source_node=~\"$source_node\"}, disk)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Disk",
+        "multi": true,
+        "name": "disk",
+        "options": [],
+        "query": {
+          "query": "label_values(unraid_smart_temperature_celsius{source_node=~\"$source_node\"}, disk)",
+          "refId": "Prometheus-disk"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Unraid SMART Cache Exporter Overview",
+  "uid": "unraid-smart-cache",
+  "version": 2,
+  "weekStart": ""
+}

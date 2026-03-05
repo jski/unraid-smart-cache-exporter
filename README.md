@@ -81,6 +81,7 @@ Exporter self-health metrics:
 - `SMART_DIR` (default `/var/local/emhttp/smart`)
 - `DISKS_INI` (default `/var/local/emhttp/disks.ini`)
 - `SYSLOG_PATH` (default `/var/log/syslog`)
+- `SYSLOG_TIMEZONE` (default: `TZ` env if set, else container local timezone)
 - `STATE_PATH` (default `/var/lib/unraid-smart-cache-exporter/state.json`)
 - `SYSLOG_INITIAL_TAIL_BYTES` (default `4194304`)
 - `EXCLUDE_NON_PRESENT` (default `false`; set `true` to omit `DISK_NP*` / empty-device slots from disk metrics)
@@ -89,7 +90,20 @@ Exporter self-health metrics:
 
 - SMART freshness depends on Unraid's own SMART update cadence.
 - Syslog lifecycle parsing tracks a persistent cursor in `STATE_PATH` so counters do not double-count on every scrape.
-- Syslog timestamps do not include timezone; event timestamp interpretation assumes local system time.
+- Syslog timestamps do not include timezone; set `SYSLOG_TIMEZONE` to your Unraid host timezone (for example `America/New_York`) to avoid offset errors.
+
+## Dashboard and Alerting Assets
+
+Reusable assets are included in this repo:
+
+- Grafana dashboard: `examples/grafana/unraid-smart-cache-overview.json`
+- Prometheus alert rules (for Alertmanager delivery): `examples/alerts/prometheus-unraid-smart-cache.rules.yml`
+
+Usage:
+
+1. Import the dashboard JSON in Grafana (`Dashboards -> Import`).
+2. Add/load the Prometheus rule file into your Prometheus `rule_files` configuration.
+3. Ensure Prometheus is configured with Alertmanager; alerts from this rule group route there automatically.
 
 ## CI
 
