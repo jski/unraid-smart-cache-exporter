@@ -66,6 +66,19 @@ Example key metrics:
 - Freshness depends on Unraid's own SMART update cadence.
 - If you change Unraid polling behavior, this exporter reflects it automatically.
 
+## Dashboard and Alerting Assets
+
+Reusable assets are included in this repo:
+
+- Grafana dashboard: `examples/grafana/unraid-smart-cache-overview.json`
+- Prometheus alert rules (for Alertmanager delivery): `examples/alerts/prometheus-unraid-smart-cache.rules.yml`
+
+Usage:
+
+1. Import the dashboard JSON in Grafana (`Dashboards -> Import`).
+2. Add/load the Prometheus rule file into your Prometheus `rule_files` configuration.
+3. Ensure Prometheus is configured with Alertmanager; alerts from this rule group route there automatically.
+
 ## CI
 
 GitHub Actions workflows are included:
