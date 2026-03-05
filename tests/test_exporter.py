@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 import exporter
 
@@ -111,6 +112,41 @@ class ExporterTests(unittest.TestCase):
         self.assertIn('unraid_disk_last_spinup_timestamp_seconds{disk="disk1"}', metrics)
         self.assertIn('unraid_disk_last_spindown_timestamp_seconds{disk="disk1"}', metrics)
         self.assertIn("unraid_exporter_log_parse_errors_total 1", metrics)
+        self.assertIn("unraid_exporter_state_persist_ok 1", metrics)
+
+    def test_render_metrics_reports_state_persist_failure(self):
+        original_smart = exporter.SMART_DIR
+        original_disks = exporter.DISKS_INI
+        original_exclude = exporter.EXCLUDE_NON_PRESENT
+        original_syslog = exporter.SYSLOG_PATH
+        original_state = exporter.STATE_PATH
+        original_tail = exporter.SYSLOG_INITIAL_TAIL_BYTES
+        original_errors = exporter.STATE_PERSIST_ERRORS_TOTAL
+        original_last_error = exporter.LAST_STATE_PERSIST_ERROR_TS
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                exporter.SMART_DIR = Path("tests/fixtures/smart")
+                exporter.DISKS_INI = Path("tests/fixtures/disks.ini")
+                exporter.EXCLUDE_NON_PRESENT = False
+                exporter.SYSLOG_PATH = Path("tests/fixtures/syslog.log")
+                exporter.STATE_PATH = Path(tmp) / "state.json"
+                exporter.SYSLOG_INITIAL_TAIL_BYTES = 1024 * 1024
+                exporter.STATE_PERSIST_ERRORS_TOTAL = 0
+                exporter.LAST_STATE_PERSIST_ERROR_TS = 0.0
+                with mock.patch("exporter._save_event_state", side_effect=OSError("write failed")):
+                    metrics = exporter.render_metrics()
+        finally:
+            exporter.SMART_DIR = original_smart
+            exporter.DISKS_INI = original_disks
+            exporter.EXCLUDE_NON_PRESENT = original_exclude
+            exporter.SYSLOG_PATH = original_syslog
+            exporter.STATE_PATH = original_state
+            exporter.SYSLOG_INITIAL_TAIL_BYTES = original_tail
+            exporter.STATE_PERSIST_ERRORS_TOTAL = original_errors
+            exporter.LAST_STATE_PERSIST_ERROR_TS = original_last_error
+
+        self.assertIn("unraid_exporter_state_persist_ok 0", metrics)
+        self.assertIn("unraid_exporter_state_persist_errors_total 1", metrics)
 
     def test_render_metrics_excludes_non_present_disks(self):
         original_smart = exporter.SMART_DIR
