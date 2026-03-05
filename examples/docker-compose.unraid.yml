@@ -4,7 +4,7 @@ services:
   unraid-smart-cache-exporter:
     image: ghcr.io/jski/unraid-smart-cache-exporter:latest
     build:
-      context: .
+      context: ../.
       dockerfile: Dockerfile
     container_name: unraid-smart-cache-exporter
     restart: unless-stopped
