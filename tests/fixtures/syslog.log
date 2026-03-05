@@ -1,0 +1,5 @@
+Mar  5 02:25:59 unraid emhttpd: spinning down /dev/sde
+Mar  5 03:49:34 unraid emhttpd: read SMART /dev/sde
+Mar  5 03:55:00 unraid emhttpd: spinning up /dev/sdf
+Mar  5 03:57:00 unraid emhttpd: spinning down /dev/sdf
+Mar  5 04:00:00 unraid emhttpd: read SMART /dev/sdzz
