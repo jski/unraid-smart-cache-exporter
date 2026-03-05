@@ -810,7 +810,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000",
           "legendFormat": "last_spindown_ts {{disk}}",
           "instant": true,
           "range": false,
@@ -819,7 +819,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000",
           "legendFormat": "last_smart_read_ts {{disk}}",
           "instant": true,
           "range": false,
@@ -828,7 +828,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "max by (disk) (unraid_disk_spin_state_last_change_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"})",
+          "expr": "max by (disk) (unraid_disk_spin_state_last_change_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000)",
           "legendFormat": "spin_state_last_change_ts {{disk}}",
           "instant": true,
           "range": false,
