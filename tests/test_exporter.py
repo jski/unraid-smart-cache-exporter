@@ -64,11 +64,26 @@ class ExporterTests(unittest.TestCase):
         self.assertIn("unraid_smart_cache_scrape_duration_seconds", metrics)
 
         # Event-derived metrics should be present.
-        self.assertIn('unraid_disk_event_total{disk="unknown_sde",device="sde",event="spinning down"} 1', metrics)
-        self.assertIn('unraid_disk_event_total{disk="unknown_sde",device="sde",event="read SMART"} 1', metrics)
-        self.assertIn('unraid_disk_event_total{disk="disk1",device="sdf",event="spinning up"} 1', metrics)
-        self.assertIn('unraid_disk_event_total{disk="disk1",device="sdf",event="spinning down"} 1', metrics)
-        self.assertIn('unraid_disk_spin_state{disk="disk1",device="sdf"} 0', metrics)
+        self.assertIn(
+            'unraid_disk_event_total{disk="unknown_sde",device="sde",event="spinning down",event_source="explicit"} 1',
+            metrics,
+        )
+        self.assertIn(
+            'unraid_disk_event_total{disk="unknown_sde",device="sde",event="read SMART",event_source="explicit"} 1',
+            metrics,
+        )
+        self.assertIn(
+            'unraid_disk_event_total{disk="disk1",device="sdf",event="spinning up",event_source="explicit"} 1',
+            metrics,
+        )
+        self.assertIn(
+            'unraid_disk_event_total{disk="disk1",device="sdf",event="spinning down",event_source="explicit"} 1',
+            metrics,
+        )
+        self.assertIn(
+            'unraid_disk_spin_state{disk="disk1",device="sdf",state_source="explicit",confidence="high"} 0',
+            metrics,
+        )
         self.assertIn('unraid_disk_last_spinup_timestamp_seconds{disk="disk1"}', metrics)
         self.assertIn('unraid_disk_last_spindown_timestamp_seconds{disk="disk1"}', metrics)
         self.assertIn("unraid_exporter_log_parse_errors_total 1", metrics)
@@ -123,9 +138,48 @@ class ExporterTests(unittest.TestCase):
             exporter.STATE_PATH = original_state
             exporter.SYSLOG_INITIAL_TAIL_BYTES = original_tail
 
-        needle = 'unraid_disk_event_total{disk="disk1",device="sdf",event="spinning down"} 1'
+        needle = 'unraid_disk_event_total{disk="disk1",device="sdf",event="spinning down",event_source="explicit"} 1'
         self.assertIn(needle, first)
         self.assertIn(needle, second)
+
+    def test_infer_spinup_from_counter_delta_when_state_down(self):
+        state = exporter._event_state_default()
+        state["spin_state"] = {
+            "disk1": {
+                "device": "sdf",
+                "state": "down",
+                "last_change_ts": 100.0,
+                "state_source": "explicit",
+                "confidence": "high",
+            }
+        }
+        state["disk_counters"] = {
+            "disk1": {"reads": 100, "writes": 200, "errors": 0}
+        }
+
+        disks = {
+            "disk1": {
+                "device": "sdf",
+                "status": "DISK_OK",
+                "numReads": "101",
+                "numWrites": "200",
+                "numErrors": "0",
+            }
+        }
+
+        out = exporter._infer_spinup_from_disk_counters(state, disks, 1234.0)
+        events = out.get("event_totals", {})
+        assert isinstance(events, dict)
+        self.assertEqual(events.get("disk1|sdf|spinning up|inferred"), 1)
+
+        spin = out.get("spin_state", {})
+        assert isinstance(spin, dict)
+        disk1 = spin.get("disk1", {})
+        assert isinstance(disk1, dict)
+        self.assertEqual(disk1.get("state"), "up")
+        self.assertEqual(disk1.get("state_source"), "inferred")
+        self.assertEqual(disk1.get("confidence"), "medium")
+        self.assertEqual(int(out.get("inferred_transitions_total", 0)), 1)
 
 
 if __name__ == "__main__":

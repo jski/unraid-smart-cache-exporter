@@ -233,21 +233,25 @@ def _event_state_default() -> Dict[str, object]:
         "event_totals": {},
         "last_event_ts": {},
         "spin_state": {},
+        "disk_counters": {},
+        "inferred_transitions_total": 0,
         "parse_errors_total": 0,
         "scan_errors_total": 0,
         "last_successful_log_scan_ts": 0.0,
     }
 
 
-def _event_key(disk: str, device: str, event: str) -> str:
-    return f"{disk}|{device}|{event}"
+def _event_key(disk: str, device: str, event: str, event_source: str = "explicit") -> str:
+    return f"{disk}|{device}|{event}|{event_source}"
 
 
-def _event_key_parts(key: str) -> Tuple[str, str, str]:
-    parts = key.split("|", 2)
+def _event_key_parts(key: str) -> Tuple[str, str, str, str]:
+    parts = key.split("|")
+    if len(parts) == 4:
+        return parts[0], parts[1], parts[2], parts[3]
     if len(parts) != 3:
-        return "unknown", "unknown", key
-    return parts[0], parts[1], parts[2]
+        return "unknown", "unknown", key, "explicit"
+    return parts[0], parts[1], parts[2], "explicit"
 
 
 def _load_event_state(path: Path) -> Dict[str, object]:
@@ -266,11 +270,11 @@ def _load_event_state(path: Path) -> Dict[str, object]:
             "offset": int(payload["log_cursor"].get("offset", 0) or 0),
         }
 
-    for key in ("event_totals", "last_event_ts", "spin_state"):
+    for key in ("event_totals", "last_event_ts", "spin_state", "disk_counters"):
         if isinstance(payload.get(key), dict):
             state[key] = payload[key]
 
-    for key in ("parse_errors_total", "scan_errors_total"):
+    for key in ("parse_errors_total", "scan_errors_total", "inferred_transitions_total"):
         try:
             state[key] = int(payload.get(key, 0) or 0)
         except (TypeError, ValueError):
@@ -357,7 +361,7 @@ def _scan_syslog_events(
         disk = device_to_disk.get(device, f"unknown_{device}")
         event_ts = _parse_syslog_timestamp(match.group("month"), match.group("day"), match.group("hms"), now, SYSLOG_TIMEZONE)
 
-        key = _event_key(disk=disk, device=device, event=event)
+        key = _event_key(disk=disk, device=device, event=event, event_source="explicit")
         event_totals[key] = int(event_totals.get(key, 0) or 0) + 1
         prev = float(last_event_ts.get(key, 0.0) or 0.0)
         if event_ts > prev:
@@ -374,6 +378,8 @@ def _scan_syslog_events(
                 "device": device,
                 "state": next_state,
                 "last_change_ts": last_change,
+                "state_source": "explicit",
+                "confidence": "high",
             }
 
     state["event_totals"] = event_totals
@@ -382,6 +388,76 @@ def _scan_syslog_events(
     state["parse_errors_total"] = parse_errors_total
     state["log_cursor"] = {"inode": int(stat_info.st_ino), "offset": int(new_offset)}
     state["last_successful_log_scan_ts"] = now
+    return state
+
+
+def _infer_spinup_from_disk_counters(state: Dict[str, object], disks: Dict[str, Dict[str, str]], now: float) -> Dict[str, object]:
+    # Infer spin-up transitions when disk IO counters increase after a known down state.
+    # This keeps lifecycle visibility usable when Unraid omits explicit "spinning up" logs.
+    event_totals = state.get("event_totals", {}) if isinstance(state.get("event_totals"), dict) else {}
+    last_event_ts = state.get("last_event_ts", {}) if isinstance(state.get("last_event_ts"), dict) else {}
+    spin_state = state.get("spin_state", {}) if isinstance(state.get("spin_state"), dict) else {}
+    prev_counters = state.get("disk_counters", {}) if isinstance(state.get("disk_counters"), dict) else {}
+    next_counters: Dict[str, Dict[str, int]] = {}
+    inferred_total = int(state.get("inferred_transitions_total", 0) or 0)
+
+    for disk, fields in sorted(disks.items()):
+        if _is_non_present_disk(fields):
+            continue
+
+        reads = _parse_int(fields.get("numReads", ""))
+        writes = _parse_int(fields.get("numWrites", ""))
+        errors = _parse_int(fields.get("numErrors", ""))
+        if reads is None and writes is None and errors is None:
+            continue
+
+        current = {"reads": reads or 0, "writes": writes or 0, "errors": errors or 0}
+        next_counters[disk] = current
+
+        previous = prev_counters.get(disk, {})
+        if not isinstance(previous, dict):
+            continue
+
+        prev_reads = int(previous.get("reads", current["reads"]) or 0)
+        prev_writes = int(previous.get("writes", current["writes"]) or 0)
+        io_increase = current["reads"] > prev_reads or current["writes"] > prev_writes
+        if not io_increase:
+            continue
+
+        prior = spin_state.get(disk, {}) if isinstance(spin_state.get(disk), dict) else {}
+        prior_state = str(prior.get("state", "unknown"))
+        device = fields.get("device", "").strip().lower() or str(prior.get("device", ""))
+
+        if prior_state == "down":
+            key = _event_key(disk=disk, device=device, event="spinning up", event_source="inferred")
+            event_totals[key] = int(event_totals.get(key, 0) or 0) + 1
+            prev_ts = float(last_event_ts.get(key, 0.0) or 0.0)
+            if now > prev_ts:
+                last_event_ts[key] = now
+            spin_state[disk] = {
+                "device": device,
+                "state": "up",
+                "last_change_ts": now,
+                "state_source": "inferred",
+                "confidence": "medium",
+            }
+            inferred_total += 1
+            continue
+
+        if prior_state == "unknown":
+            spin_state[disk] = {
+                "device": device,
+                "state": "up",
+                "last_change_ts": float(prior.get("last_change_ts", 0.0) or now),
+                "state_source": "inferred",
+                "confidence": "low",
+            }
+
+    state["event_totals"] = event_totals
+    state["last_event_ts"] = last_event_ts
+    state["spin_state"] = spin_state
+    state["disk_counters"] = next_counters
+    state["inferred_transitions_total"] = inferred_total
     return state
 
 
@@ -396,6 +472,7 @@ def render_metrics() -> str:
     event_state = _load_event_state(STATE_PATH)
     try:
         event_state = _scan_syslog_events(SYSLOG_PATH, event_state, device_to_disk, now, SYSLOG_INITIAL_TAIL_BYTES)
+        event_state = _infer_spinup_from_disk_counters(event_state, disks, now)
     except Exception:
         event_state["scan_errors_total"] = int(event_state.get("scan_errors_total", 0) or 0) + 1
     try:
@@ -448,7 +525,7 @@ def render_metrics() -> str:
     lines.append("# HELP unraid_disk_spin_down_enabled Disk spin-down enabled flag from disks.ini.")
     lines.append("# TYPE unraid_disk_spin_down_enabled gauge")
 
-    lines.append("# HELP unraid_disk_event_total Disk lifecycle events from emhttpd syslog.")
+    lines.append("# HELP unraid_disk_event_total Disk lifecycle events with source provenance.")
     lines.append("# TYPE unraid_disk_event_total counter")
     lines.append("# HELP unraid_disk_last_event_timestamp_seconds Last seen timestamp for disk lifecycle event.")
     lines.append("# TYPE unraid_disk_last_event_timestamp_seconds gauge")
@@ -479,6 +556,8 @@ def render_metrics() -> str:
     lines.append("# TYPE unraid_exporter_log_cursor_offset_bytes gauge")
     lines.append("# HELP unraid_exporter_log_lag_seconds Age since newest observed lifecycle event.")
     lines.append("# TYPE unraid_exporter_log_lag_seconds gauge")
+    lines.append("# HELP unraid_exporter_inferred_transitions_total Number of inferred spin-up transitions.")
+    lines.append("# TYPE unraid_exporter_inferred_transitions_total counter")
 
     lines.append("# HELP unraid_smart_cache_scrape_duration_seconds Exporter scrape render duration.")
     lines.append("# TYPE unraid_smart_cache_scrape_duration_seconds gauge")
@@ -568,16 +647,20 @@ def render_metrics() -> str:
     newest_event_ts = 0.0
 
     for key, value in sorted(event_totals.items()):
-        disk, device, event = _event_key_parts(key)
+        disk, device, event, event_source = _event_key_parts(key)
         count = int(value or 0)
-        lines.append(f'unraid_disk_event_total{_labels(disk=disk, device=device, event=event)} {count}')
+        lines.append(f'unraid_disk_event_total{_labels(disk=disk, device=device, event=event, event_source=event_source)} {count}')
 
     for key, value in sorted(last_event_ts.items()):
-        disk, device, event = _event_key_parts(key)
+        disk, device, event, event_source = _event_key_parts(key)
         ts = float(value or 0.0)
-        lines.append(f'unraid_disk_last_event_timestamp_seconds{_labels(disk=disk, device=device, event=event)} {ts:.0f}')
         lines.append(
-            f'unraid_disk_last_event_age_seconds{_labels(disk=disk, device=device, event=event)} '
+            f'unraid_disk_last_event_timestamp_seconds'
+            f'{_labels(disk=disk, device=device, event=event, event_source=event_source)} {ts:.0f}'
+        )
+        lines.append(
+            f'unraid_disk_last_event_age_seconds'
+            f'{_labels(disk=disk, device=device, event=event, event_source=event_source)} '
             f'{max(0.0, now - ts):.3f}'
         )
         last_by_event[(disk, event)] = max(last_by_event.get((disk, event), 0.0), ts)
@@ -588,10 +671,12 @@ def render_metrics() -> str:
             continue
         device = str(fields.get("device", ""))
         state_name = str(fields.get("state", "unknown"))
+        state_source = str(fields.get("state_source", "unknown"))
+        confidence = str(fields.get("confidence", "low"))
         state_value = 1 if state_name == "up" else 0 if state_name == "down" else -1
         last_change = float(fields.get("last_change_ts", 0.0) or 0.0)
 
-        labels = _labels(disk=disk_entry, device=device)
+        labels = _labels(disk=disk_entry, device=device, state_source=state_source, confidence=confidence)
         lines.append(f"unraid_disk_spin_state{labels} {state_value}")
         lines.append(f"unraid_disk_spin_state_last_change_timestamp_seconds{labels} {last_change:.0f}")
         lines.append(f"unraid_disk_spin_state_age_seconds{labels} {max(0.0, now - last_change):.3f}")
@@ -618,6 +703,7 @@ def render_metrics() -> str:
     lines.append(f"unraid_exporter_log_scan_errors_total {scan_errors}")
     lines.append(f"unraid_exporter_last_successful_log_scan_timestamp_seconds {last_scan:.0f}")
     lines.append(f"unraid_exporter_log_cursor_offset_bytes {cursor_offset}")
+    lines.append(f'unraid_exporter_inferred_transitions_total {int(event_state.get("inferred_transitions_total", 0) or 0)}')
     if newest_event_ts > 0:
         lines.append(f"unraid_exporter_log_lag_seconds {max(0.0, now - newest_event_ts):.3f}")
     else:

@@ -58,13 +58,13 @@ SMART + disk state:
 
 Event/state-change metrics:
 
-- `unraid_disk_event_total{disk,device,event}`
-- `unraid_disk_last_event_timestamp_seconds{disk,device,event}`
+- `unraid_disk_event_total{disk,device,event,event_source}`
+- `unraid_disk_last_event_timestamp_seconds{disk,device,event,event_source}`
 - `unraid_disk_last_spinup_timestamp_seconds{disk}`
 - `unraid_disk_last_spindown_timestamp_seconds{disk}`
 - `unraid_disk_last_smart_read_timestamp_seconds{disk}`
-- `unraid_disk_spin_state{disk,device}` (`1=up`, `0=down`, `-1=unknown`)
-- `unraid_disk_spin_state_last_change_timestamp_seconds{disk,device}`
+- `unraid_disk_spin_state{disk,device,state_source,confidence}` (`1=up`, `0=down`, `-1=unknown`)
+- `unraid_disk_spin_state_last_change_timestamp_seconds{disk,device,state_source,confidence}`
 
 Exporter self-health metrics:
 
@@ -73,6 +73,7 @@ Exporter self-health metrics:
 - `unraid_exporter_last_successful_log_scan_timestamp_seconds`
 - `unraid_exporter_log_cursor_offset_bytes`
 - `unraid_exporter_log_lag_seconds`
+- `unraid_exporter_inferred_transitions_total`
 
 ## Environment variables
 
@@ -91,6 +92,9 @@ Exporter self-health metrics:
 - SMART freshness depends on Unraid's own SMART update cadence.
 - Syslog lifecycle parsing tracks a persistent cursor in `STATE_PATH` so counters do not double-count on every scrape.
 - Syslog timestamps do not include timezone; set `SYSLOG_TIMEZONE` to your Unraid host timezone (for example `America/New_York`) to avoid offset errors.
+- Event provenance is explicit in metric labels:
+  - `event_source="explicit"` for parsed emhttpd lifecycle logs.
+  - `event_source="inferred"` for fallback spin-up transitions inferred from disk counter deltas after a known down state.
 
 ## Dashboard and Alerting Assets
 
