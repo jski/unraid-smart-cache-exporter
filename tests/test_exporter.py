@@ -1,11 +1,22 @@
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import exporter
 
 
 class ExporterTests(unittest.TestCase):
+    def test_parse_syslog_timestamp_honors_timezone(self):
+        # Simulate parse at 2026-03-05 16:35:00 UTC.
+        now = datetime(2026, 3, 5, 16, 35, 0, tzinfo=timezone.utc).timestamp()
+        est = timezone(timedelta(hours=-5))
+
+        ts = exporter._parse_syslog_timestamp("Mar", "5", "11:30:52", now, est)
+        expected = datetime(2026, 3, 5, 11, 30, 52, tzinfo=est).timestamp()
+
+        self.assertEqual(int(ts), int(expected))
+
     def test_parse_disks_ini(self):
         disks = exporter.parse_disks_ini(Path("tests/fixtures/disks.ini"))
         self.assertIn("disk1", disks)

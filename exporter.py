@@ -15,10 +15,11 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, tzinfo
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 SMART_ATTR_RE = re.compile(r"^\s*(\d+)\s+([A-Za-z0-9_\-]+)\s+")
 SECTION_RE = re.compile(r'^\["?([^"\]]+)"?\]$')
@@ -76,6 +77,20 @@ SYSLOG_INITIAL_TAIL_BYTES = _env_int("SYSLOG_INITIAL_TAIL_BYTES", 4 * 1024 * 102
 LISTEN_HOST = _env("LISTEN_HOST", "0.0.0.0")
 LISTEN_PORT = int(_env("LISTEN_PORT", "9903"))
 EXCLUDE_NON_PRESENT = _env_bool("EXCLUDE_NON_PRESENT", False)
+SYSLOG_TIMEZONE_NAME = _env("SYSLOG_TIMEZONE", _env("TZ", ""))
+
+
+def _resolve_syslog_timezone(tz_name: str) -> tzinfo:
+    # Prefer explicit IANA timezone for syslog parsing; fallback to container local time.
+    if tz_name:
+        try:
+            return ZoneInfo(tz_name)
+        except ZoneInfoNotFoundError:
+            pass
+    return datetime.now().astimezone().tzinfo  # type: ignore[return-value]
+
+
+SYSLOG_TIMEZONE = _resolve_syslog_timezone(SYSLOG_TIMEZONE_NAME)
 
 
 def _read_text(path: Path) -> str:
@@ -276,11 +291,13 @@ def _save_event_state(path: Path, state: Dict[str, object]) -> None:
     temp.replace(path)
 
 
-def _parse_syslog_timestamp(month: str, day: str, hms: str, now: float) -> float:
+def _parse_syslog_timestamp(month: str, day: str, hms: str, now: float, syslog_tz: tzinfo) -> float:
     # Syslog timestamps omit year and timezone. Interpret in local time and
     # backshift year when near New Year's rollover.
-    current_year = datetime.fromtimestamp(now).year
-    dt = datetime.strptime(f"{month} {int(day)} {current_year} {hms}", "%b %d %Y %H:%M:%S")
+    current_year = datetime.fromtimestamp(now, syslog_tz).year
+    dt = datetime.strptime(f"{month} {int(day)} {current_year} {hms}", "%b %d %Y %H:%M:%S").replace(
+        tzinfo=syslog_tz
+    )
     ts = dt.timestamp()
     if ts - now > 86400:
         dt = dt.replace(year=current_year - 1)
@@ -338,7 +355,7 @@ def _scan_syslog_events(
         event = match.group("event")
         device = match.group("device").lower()
         disk = device_to_disk.get(device, f"unknown_{device}")
-        event_ts = _parse_syslog_timestamp(match.group("month"), match.group("day"), match.group("hms"), now)
+        event_ts = _parse_syslog_timestamp(match.group("month"), match.group("day"), match.group("hms"), now, SYSLOG_TIMEZONE)
 
         key = _event_key(disk=disk, device=device, event=event)
         event_totals[key] = int(event_totals.get(key, 0) or 0) + 1
@@ -642,6 +659,14 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--syslog-timezone",
+        default=SYSLOG_TIMEZONE_NAME,
+        help=(
+            "IANA timezone for syslog timestamp parsing (e.g. America/New_York). "
+            "Defaults to SYSLOG_TIMEZONE env, then TZ env, then container local time."
+        ),
+    )
+    parser.add_argument(
         "--listen-host",
         default=LISTEN_HOST,
         help="Host interface to bind (default from LISTEN_HOST env).",
@@ -701,7 +726,7 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global SMART_DIR, DISKS_INI, SYSLOG_PATH, STATE_PATH, SYSLOG_INITIAL_TAIL_BYTES
-    global LISTEN_HOST, LISTEN_PORT, EXCLUDE_NON_PRESENT
+    global LISTEN_HOST, LISTEN_PORT, EXCLUDE_NON_PRESENT, SYSLOG_TIMEZONE_NAME, SYSLOG_TIMEZONE
 
     args = parse_args()
     SMART_DIR = Path(args.smart_dir)
@@ -712,6 +737,8 @@ def main() -> None:
     LISTEN_HOST = args.listen_host
     LISTEN_PORT = args.listen_port
     EXCLUDE_NON_PRESENT = args.exclude_non_present
+    SYSLOG_TIMEZONE_NAME = args.syslog_timezone
+    SYSLOG_TIMEZONE = _resolve_syslog_timezone(SYSLOG_TIMEZONE_NAME)
 
     server = ThreadingHTTPServer((LISTEN_HOST, LISTEN_PORT), MetricsHandler)
     print(f"listening on {LISTEN_HOST}:{LISTEN_PORT}")
