@@ -14,6 +14,7 @@ services:
       - LISTEN_PORT=9903
       - SMART_DIR=/var/local/emhttp/smart
       - DISKS_INI=/var/local/emhttp/disks.ini
+      - EXCLUDE_NON_PRESENT=true
     volumes:
       - /var/local/emhttp/smart:/var/local/emhttp/smart:ro
       - /var/local/emhttp/disks.ini:/var/local/emhttp/disks.ini:ro
