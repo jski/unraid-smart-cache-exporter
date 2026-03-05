@@ -64,7 +64,24 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "celsius"
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 45
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          }
         },
         "overrides": []
       },
@@ -89,7 +106,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_smart_temperature_celsius{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "unraid_smart_temperature_celsius{source_node=~\"$source_node\",disk=~\"$disk\"} and on (disk, source_node) (unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} < bool 21600)",
           "legendFormat": "{{disk}}",
           "range": true,
           "refId": "A"
@@ -97,7 +114,7 @@
       ],
       "title": "Disk Temperature",
       "type": "timeseries",
-      "description": "Tracks last known SMART temperature per disk. Sustained high values indicate thermal stress and can shorten drive life; check cooling if temperatures trend upward."
+      "description": "Tracks SMART temperature for disks with fresh snapshots (<6h). Missing lines indicate stale or unavailable SMART data, not necessarily cool disks."
     },
     {
       "datasource": {
@@ -106,9 +123,68 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "m"
+          "unit": "none"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Snapshot Age (minutes)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "m"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Freshness"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "fresh",
+                        "color": "green"
+                      },
+                      "0": {
+                        "text": "stale",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -119,6 +195,9 @@
       "id": 2,
       "options": {
         "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -131,17 +210,67 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} / 60",
+          "expr": "max by (disk) (unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} / 60)",
           "legendFormat": "{{disk}}",
           "range": false,
           "refId": "A",
           "instant": true,
           "format": "table"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} < bool 21600)",
+          "legendFormat": "{{disk}}",
+          "range": false,
+          "refId": "B",
+          "instant": true,
+          "format": "table"
         }
       ],
-      "title": "SMART Snapshot Age (minutes) by Disk",
+      "title": "SMART Snapshot Freshness by Disk",
       "type": "table",
-      "description": "Shows how old each SMART snapshot is. Large age means SMART data is stale, so health/status panels may no longer reflect current disk conditions."
+      "description": "Shows snapshot age and freshness (<6h) per disk. Stale means temperature/SMART counters may not reflect current disk state.",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
+              "instance": true,
+              "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk": "Disk",
+              "Value #A": "Snapshot Age (minutes)",
+              "Value #B": "Freshness"
+            }
+          }
+        }
+      ]
     },
     {
       "datasource": {
@@ -335,6 +464,38 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Device"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "Power-On Hours"
             },
             "properties": [
@@ -399,6 +560,9 @@
       "id": 7,
       "options": {
         "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -448,7 +612,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "max by (disk) (unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"})",
           "legendFormat": "power_on_hours {{disk}}",
           "instant": true,
           "range": false,
@@ -457,7 +621,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "max by (disk) (unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"})",
           "legendFormat": "start_stop {{disk}}",
           "instant": true,
           "range": false,
@@ -466,7 +630,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
           "legendFormat": "start_stop_delta_24h {{disk}}",
           "instant": true,
           "range": false,
@@ -475,7 +639,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
           "legendFormat": "power_on_hours_delta_24h {{disk}}",
           "instant": true,
           "range": false,
@@ -494,13 +658,29 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": [
           {
             "matcher": {
               "id": "byName",
-              "options": "Events (24h)"
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "\\(24h\\)$"
             },
             "properties": [
               {
@@ -520,6 +700,9 @@
       "id": 8,
       "options": {
         "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -531,19 +714,42 @@
       },
       "transformations": [
         {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
           "id": "organize",
           "options": {
             "excludeByName": {
               "Time": true,
               "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
               "instance": true,
               "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
               "source_node": true
-            },
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
             "renameByName": {
               "disk": "Disk",
-              "event": "Event",
-              "Value": "Events (24h)"
+              "Value #A": "Spinning Up (24h)",
+              "Value #B": "Spinning Down (24h)",
+              "Value #C": "Read SMART (24h)"
             }
           }
         }
@@ -551,17 +757,35 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (disk, event) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]))",
-          "legendFormat": "{{disk}} {{event}}",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "spinning_up {{disk}}",
           "instant": true,
           "range": false,
           "format": "table",
           "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "spinning_down {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"read SMART\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "read_smart {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
         }
       ],
-      "title": "Disk State Event Counts (24h)",
+      "title": "Disk State Events (24h)",
       "type": "table",
-      "description": "24h event update count derived from last-event timestamp changes (more resilient to exporter counter resets/replays)."
+      "description": "One compact row per disk showing lifecycle event updates in the last 24h."
     },
     {
       "datasource": {
@@ -573,6 +797,22 @@
           "unit": "none"
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byName",
@@ -618,6 +858,18 @@
                 "value": 2
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Last .* Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
           }
         ]
       },
@@ -630,6 +882,9 @@
       "id": 9,
       "options": {
         "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
         "cellHeight": "sm",
         "footer": {
           "show": false,
@@ -642,7 +897,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})",
           "legendFormat": "spin_state {{disk}}",
           "instant": true,
           "range": false,
@@ -651,7 +906,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "(unraid_disk_spin_state_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "expr": "max by (disk) ((unraid_disk_spin_state_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600)",
           "legendFormat": "spin_state_age_h {{disk}}",
           "instant": true,
           "range": false,
@@ -660,7 +915,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "(time() - unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "expr": "max by (disk) ((time() - unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600)",
           "legendFormat": "hrs_since_spindown {{disk}}",
           "instant": true,
           "range": false,
@@ -669,17 +924,44 @@
         },
         {
           "editorMode": "code",
-          "expr": "(time() - unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "expr": "max by (disk) ((time() - unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600)",
           "legendFormat": "hrs_since_smart_read {{disk}}",
           "instant": true,
           "range": false,
           "format": "table",
           "refId": "D"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000)",
+          "legendFormat": "last_spindown_ts {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "E"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000)",
+          "legendFormat": "last_smart_read_ts {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "F"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (unraid_disk_spin_state_last_change_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000)",
+          "legendFormat": "spin_state_last_change_ts {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "G"
         }
       ],
-      "title": "Current Spin State + Last Event Age (hours)",
+      "title": "Current Spin State + Event Age/Time",
       "type": "table",
-      "description": "Current inferred spin state and age since key lifecycle events. This panel intentionally hides query evaluation timestamp to avoid confusion with event timestamps.",
+      "description": "Current inferred spin state with both relative age and absolute event timestamps for easier validation of recent manual spin actions.",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -693,8 +975,15 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
               "instance": true,
               "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
               "source_node": true
             }
           }
@@ -707,12 +996,14 @@
           "id": "organize",
           "options": {
             "renameByName": {
-              "device": "Device",
               "disk": "Disk",
               "Value #A": "Spin State",
               "Value #B": "Spin State Age",
               "Value #C": "Hours Since Spindown",
-              "Value #D": "Hours Since SMART Read"
+              "Value #D": "Hours Since SMART Read",
+              "Value #E": "Last Spindown Time",
+              "Value #F": "Last SMART Read Time",
+              "Value #G": "Last State Change Time"
             }
           }
         }
@@ -770,7 +1061,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(unraid_disk_event_total{source_node=~\"$source_node\",event=\"spinning up\",disk=~\"$disk\"}[24h]))",
+          "expr": "floor(clamp_min(sum(increase(unraid_disk_event_total{source_node=~\"$source_node\",event=\"spinning up\",disk=~\"$disk\"}[24h])), 0))",
           "refId": "A"
         }
       ],
@@ -887,12 +1178,362 @@
         {
           "editorMode": "code",
           "expr": "max(time() - unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
       "title": "Last Log Scan Age (s)",
       "type": "stat",
       "description": "Seconds since exporter last successfully scanned lifecycle logs. Growing/stale values indicate log ingestion has stalled and freshness is reduced."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "State Source"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Confidence"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disks"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 32
+      },
+      "id": 13,
+      "options": {
+        "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "count by (state_source, confidence) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Spin State Confidence (Current)",
+      "type": "table",
+      "description": "Shows how many disks are currently classified by explicit vs inferred state source and confidence level.",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
+              "instance": true,
+              "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
+              "source_node": true
+            },
+            "renameByName": {
+              "state_source": "State Source",
+              "confidence": "Confidence",
+              "Value": "Disks"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 8,
+        "y": 32
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(unraid_exporter_inferred_transitions_total{source_node=~\"$source_node\"}[24h]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Inferred Spin-Up Transitions (24h)",
+      "type": "stat",
+      "description": "Count of inferred spin-up transitions in the last 24h. Non-zero means fallback inference is actively supplementing missing explicit spin-up logs."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Start/Stop Delta (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power-On Delta (24h)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Spinning Down (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Spinning Up (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 15,
+      "options": {
+        "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk": "Disk",
+              "Value #A": "Start/Stop Delta (24h)",
+              "Value #B": "Power-On Delta (24h)",
+              "Value #C": "Spinning Down (24h)",
+              "Value #D": "Spinning Up (24h)"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
+          "legendFormat": "start_stop_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
+          "legendFormat": "power_on_hours_delta_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "spinning_down_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor((sum by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))) or on(disk) (0 * max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "spinning_up_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "D"
+        }
+      ],
+      "title": "Wake Churn Summary (24h)",
+      "type": "table",
+      "description": "Per-disk churn summary combining SMART lifecycle deltas and log-derived spin events to highlight wake-heavy disks."
     },
     {
       "datasource": {
@@ -937,9 +1578,9 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 32
+        "y": 40
       },
-      "id": 13,
+      "id": 16,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
