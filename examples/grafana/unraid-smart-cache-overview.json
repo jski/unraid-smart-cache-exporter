@@ -1061,7 +1061,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(unraid_disk_event_total{source_node=~\"$source_node\",event=\"spinning up\",disk=~\"$disk\"}[24h]))",
+          "expr": "floor(clamp_min(sum(increase(unraid_disk_event_total{source_node=~\"$source_node\",event=\"spinning up\",disk=~\"$disk\"}[24h])), 0))",
           "refId": "A"
         }
       ],
