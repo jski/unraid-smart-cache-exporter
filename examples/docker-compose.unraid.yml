@@ -1,0 +1,17 @@
+name: unraid-smart-cache-exporter
+
+services:
+  unraid-smart-cache-exporter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: unraid-smart-cache-exporter
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - LISTEN_PORT=9903
+      - SMART_DIR=/var/local/emhttp/smart
+      - DISKS_INI=/var/local/emhttp/disks.ini
+    volumes:
+      - /var/local/emhttp/smart:/var/local/emhttp/smart:ro
+      - /var/local/emhttp/disks.ini:/var/local/emhttp/disks.ini:ro
