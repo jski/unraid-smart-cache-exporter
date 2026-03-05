@@ -654,7 +654,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))",
+          "expr": "sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h]))",
           "legendFormat": "spinning_up {{disk}}",
           "instant": true,
           "range": false,
@@ -663,7 +663,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "max by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))",
+          "expr": "sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning down\"}[24h]))",
           "legendFormat": "spinning_down {{disk}}",
           "instant": true,
           "range": false,
@@ -672,7 +672,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "max by (disk) (changes(unraid_disk_last_event_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\",event=\"read SMART\"}[24h]))",
+          "expr": "sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"read SMART\"}[24h]))",
           "legendFormat": "read_smart {{disk}}",
           "instant": true,
           "range": false,
@@ -680,7 +680,7 @@
           "refId": "C"
         }
       ],
-      "title": "Disk State Event Counts (24h)",
+      "title": "Disk State Events (24h)",
       "type": "table",
       "description": "One compact row per disk showing lifecycle event updates in the last 24h."
     },
