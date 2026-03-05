@@ -416,10 +416,6 @@
           }
         },
         {
-          "id": "merge",
-          "options": {}
-        },
-        {
           "id": "organize",
           "options": {
             "excludeByName": {
@@ -428,7 +424,16 @@
               "instance": true,
               "job": true,
               "source_node": true
-            },
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
             "renameByName": {
               "device": "Device",
               "disk": "Disk",
@@ -683,10 +688,6 @@
           }
         },
         {
-          "id": "merge",
-          "options": {}
-        },
-        {
           "id": "organize",
           "options": {
             "excludeByName": {
@@ -695,7 +696,16 @@
               "instance": true,
               "job": true,
               "source_node": true
-            },
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
             "renameByName": {
               "device": "Device",
               "disk": "Disk",
