@@ -318,62 +318,14 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ops"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 16
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "clamp_min(increase(unraid_disk_reads_total{source_node=~\"$source_node\",disk=~\"$disk\"}[30m]) / 1800, 0)",
-          "legendFormat": "reads {{disk}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "editorMode": "code",
-          "expr": "clamp_min(increase(unraid_disk_writes_total{source_node=~\"$source_node\",disk=~\"$disk\"}[30m]) / 1800, 0)",
-          "legendFormat": "writes {{disk}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Disk IO Rate (from disks.ini counters)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "fieldConfig": {
-        "defaults": {
           "unit": "none"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 24,
+        "x": 0,
         "y": 16
       },
       "id": 7,
