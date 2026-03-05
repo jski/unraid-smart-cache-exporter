@@ -893,6 +893,77 @@
       "title": "Last Log Scan Age (s)",
       "type": "stat",
       "description": "Seconds since exporter last successfully scanned lifecycle logs. Growing/stale values indicate log ingestion has stalled and freshness is reduced."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "persist error"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "ok"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 32
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "min(unraid_exporter_state_persist_ok{source_node=~\"$source_node\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Exporter State Persistence",
+      "type": "stat",
+      "description": "Green means exporter state writes are succeeding. Red means state persistence failed on the latest scrape and lifecycle/event continuity may drift."
     }
   ],
   "refresh": "30s",

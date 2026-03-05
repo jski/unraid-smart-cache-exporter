@@ -74,6 +74,9 @@ Exporter self-health metrics:
 - `unraid_exporter_log_cursor_offset_bytes`
 - `unraid_exporter_log_lag_seconds`
 - `unraid_exporter_inferred_transitions_total`
+- `unraid_exporter_state_persist_ok`
+- `unraid_exporter_state_persist_errors_total`
+- `unraid_exporter_last_state_persist_error_timestamp_seconds`
 
 ## Environment variables
 

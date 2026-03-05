@@ -85,6 +85,8 @@ LISTEN_HOST = _env("LISTEN_HOST", "0.0.0.0")
 LISTEN_PORT = int(_env("LISTEN_PORT", "9903"))
 EXCLUDE_NON_PRESENT = _env_bool("EXCLUDE_NON_PRESENT", False)
 SYSLOG_TIMEZONE_NAME = _env("SYSLOG_TIMEZONE", _env("TZ", ""))
+STATE_PERSIST_ERRORS_TOTAL = 0
+LAST_STATE_PERSIST_ERROR_TS = 0.0
 
 
 def _valid_iana_timezone(tz_name: str) -> Optional[str]:
@@ -561,6 +563,8 @@ def _infer_spinup_from_disk_counters(state: Dict[str, object], disks: Dict[str, 
 
 
 def render_metrics() -> str:
+    global STATE_PERSIST_ERRORS_TOTAL, LAST_STATE_PERSIST_ERROR_TS
+
     start = time.perf_counter()
     now = time.time()
 
@@ -574,11 +578,14 @@ def render_metrics() -> str:
         event_state = _infer_spinup_from_disk_counters(event_state, disks, now)
     except Exception:
         event_state["scan_errors_total"] = int(event_state.get("scan_errors_total", 0) or 0) + 1
+    state_persist_ok = 1
     try:
         _save_event_state(STATE_PATH, event_state)
     except OSError:
         # Keep serving metrics even if state cannot be persisted.
-        pass
+        state_persist_ok = 0
+        STATE_PERSIST_ERRORS_TOTAL += 1
+        LAST_STATE_PERSIST_ERROR_TS = now
 
     lines: List[str] = []
     lines.append("# HELP unraid_smart_cache_scrape_timestamp_seconds Exporter scrape timestamp.")
@@ -657,6 +664,12 @@ def render_metrics() -> str:
     lines.append("# TYPE unraid_exporter_log_lag_seconds gauge")
     lines.append("# HELP unraid_exporter_inferred_transitions_total Number of inferred spin-up transitions.")
     lines.append("# TYPE unraid_exporter_inferred_transitions_total counter")
+    lines.append("# HELP unraid_exporter_state_persist_ok Whether exporter state persistence succeeded on latest scrape (1=ok, 0=error).")
+    lines.append("# TYPE unraid_exporter_state_persist_ok gauge")
+    lines.append("# HELP unraid_exporter_state_persist_errors_total Number of exporter state persistence failures.")
+    lines.append("# TYPE unraid_exporter_state_persist_errors_total counter")
+    lines.append("# HELP unraid_exporter_last_state_persist_error_timestamp_seconds Last exporter state persistence failure timestamp.")
+    lines.append("# TYPE unraid_exporter_last_state_persist_error_timestamp_seconds gauge")
 
     lines.append("# HELP unraid_smart_cache_scrape_duration_seconds Exporter scrape render duration.")
     lines.append("# TYPE unraid_smart_cache_scrape_duration_seconds gauge")
@@ -803,6 +816,9 @@ def render_metrics() -> str:
     lines.append(f"unraid_exporter_last_successful_log_scan_timestamp_seconds {last_scan:.0f}")
     lines.append(f"unraid_exporter_log_cursor_offset_bytes {cursor_offset}")
     lines.append(f'unraid_exporter_inferred_transitions_total {int(event_state.get("inferred_transitions_total", 0) or 0)}')
+    lines.append(f"unraid_exporter_state_persist_ok {state_persist_ok}")
+    lines.append(f"unraid_exporter_state_persist_errors_total {STATE_PERSIST_ERRORS_TOTAL}")
+    lines.append(f"unraid_exporter_last_state_persist_error_timestamp_seconds {LAST_STATE_PERSIST_ERROR_TS:.0f}")
     if newest_event_ts > 0:
         lines.append(f"unraid_exporter_log_lag_seconds {max(0.0, now - newest_event_ts):.3f}")
     else:
