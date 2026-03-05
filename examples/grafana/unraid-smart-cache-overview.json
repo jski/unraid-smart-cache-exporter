@@ -89,7 +89,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_smart_temperature_celsius{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "unraid_smart_temperature_celsius{source_node=~\"$source_node\",disk=~\"$disk\"} and on (disk, source_node) (unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} < bool 21600)",
           "legendFormat": "{{disk}}",
           "range": true,
           "refId": "A"
@@ -97,7 +97,7 @@
       ],
       "title": "Disk Temperature",
       "type": "timeseries",
-      "description": "Tracks last known SMART temperature per disk. Sustained high values indicate thermal stress and can shorten drive life; check cooling if temperatures trend upward."
+      "description": "Tracks SMART temperature for disks with fresh snapshots (<6h). Missing lines indicate stale or unavailable SMART data, not necessarily cool disks."
     },
     {
       "datasource": {
@@ -106,9 +106,52 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "m"
+          "unit": "none"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Snapshot Age (minutes)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "m"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Freshness"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "fresh",
+                        "color": "green"
+                      },
+                      "0": {
+                        "text": "stale",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -137,11 +180,54 @@
           "refId": "A",
           "instant": true,
           "format": "table"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} < bool 21600",
+          "legendFormat": "{{disk}}",
+          "range": false,
+          "refId": "B",
+          "instant": true,
+          "format": "table"
         }
       ],
-      "title": "SMART Snapshot Age (minutes) by Disk",
+      "title": "SMART Snapshot Freshness by Disk",
       "type": "table",
-      "description": "Shows how old each SMART snapshot is. Large age means SMART data is stale, so health/status panels may no longer reflect current disk conditions."
+      "description": "Shows snapshot age and freshness (<6h) per disk. Stale means temperature/SMART counters may not reflect current disk state.",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk": "Disk",
+              "Value #A": "Snapshot Age (minutes)",
+              "Value #B": "Freshness"
+            }
+          }
+        }
+      ]
     },
     {
       "datasource": {
@@ -618,6 +704,18 @@
                 "value": 2
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Last .* Time"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
           }
         ]
       },
@@ -642,7 +740,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})",
           "legendFormat": "spin_state {{disk}}",
           "instant": true,
           "range": false,
@@ -651,7 +749,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "(unraid_disk_spin_state_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "expr": "max by (disk) ((unraid_disk_spin_state_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600)",
           "legendFormat": "spin_state_age_h {{disk}}",
           "instant": true,
           "range": false,
@@ -675,11 +773,38 @@
           "range": false,
           "format": "table",
           "refId": "D"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "last_spindown_ts {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "E"
+        },
+        {
+          "editorMode": "code",
+          "expr": "unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "last_smart_read_ts {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "F"
+        },
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (unraid_disk_spin_state_last_change_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"})",
+          "legendFormat": "spin_state_last_change_ts {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "G"
         }
       ],
-      "title": "Current Spin State + Last Event Age (hours)",
+      "title": "Current Spin State + Event Age/Time",
       "type": "table",
-      "description": "Current inferred spin state and age since key lifecycle events. This panel intentionally hides query evaluation timestamp to avoid confusion with event timestamps.",
+      "description": "Current inferred spin state with both relative age and absolute event timestamps for easier validation of recent manual spin actions.",
       "transformations": [
         {
           "id": "labelsToFields",
@@ -707,12 +832,14 @@
           "id": "organize",
           "options": {
             "renameByName": {
-              "device": "Device",
               "disk": "Disk",
               "Value #A": "Spin State",
               "Value #B": "Spin State Age",
               "Value #C": "Hours Since Spindown",
-              "Value #D": "Hours Since SMART Read"
+              "Value #D": "Hours Since SMART Read",
+              "Value #E": "Last Spindown Time",
+              "Value #F": "Last SMART Read Time",
+              "Value #G": "Last State Change Time"
             }
           }
         }
