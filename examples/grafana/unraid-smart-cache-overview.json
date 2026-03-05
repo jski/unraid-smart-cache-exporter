@@ -96,7 +96,8 @@
         }
       ],
       "title": "Disk Temperature",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Tracks last known SMART temperature per disk. Sustained high values indicate thermal stress and can shorten drive life; check cooling if temperatures trend upward."
     },
     {
       "datasource": {
@@ -139,7 +140,8 @@
         }
       ],
       "title": "SMART Snapshot Age (minutes) by Disk",
-      "type": "table"
+      "type": "table",
+      "description": "Shows how old each SMART snapshot is. Large age means SMART data is stale, so health/status panels may no longer reflect current disk conditions."
     },
     {
       "datasource": {
@@ -196,7 +198,8 @@
         }
       ],
       "title": "Disks With SMART Issues",
-      "type": "stat"
+      "type": "stat",
+      "description": "Counts disks with critical SMART sector signals (pending/offline-uncorrectable/reallocated). Any non-zero value is a health warning that should be triaged."
     },
     {
       "datasource": {
@@ -253,7 +256,8 @@
         }
       ],
       "title": "Stale SMART Snapshots (>24h)",
-      "type": "stat"
+      "type": "stat",
+      "description": "Counts disks with SMART snapshots older than 24h. Stale snapshots reduce confidence in all SMART-based inferences and alerting."
     },
     {
       "datasource": {
@@ -315,7 +319,8 @@
         }
       ],
       "title": "SMART Error Counters",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Raw SMART error counters by disk. Rising values over time are more important than one-time values and can indicate degrading media or link quality."
     },
     {
       "datasource": {
@@ -385,7 +390,8 @@
         }
       ],
       "title": "Disk Lifecycle Counters (Current + 24h Delta)",
-      "type": "table"
+      "type": "table",
+      "description": "Lifecycle counters from SMART (current values plus 24h delta). Helps spot abnormal churn patterns that may correlate with unwanted wakeups."
     },
     {
       "datasource": {
@@ -428,7 +434,8 @@
         }
       ],
       "title": "Disk State Event Counts (24h)",
-      "type": "table"
+      "type": "table",
+      "description": "24h count of exporter-detected lifecycle events (spinning up/down, SMART reads). Use this to identify disks with frequent wake activity."
     },
     {
       "datasource": {
@@ -498,7 +505,8 @@
         }
       ],
       "title": "Current Spin State + Last Event Age (hours)",
-      "type": "table"
+      "type": "table",
+      "description": "Current inferred spin state and time since key lifecycle events. Useful for confirming whether a disk is likely idle vs recently touched."
     },
     {
       "datasource": {
@@ -557,7 +565,8 @@
         }
       ],
       "title": "Spin-Up Events (24h)",
-      "type": "stat"
+      "type": "stat",
+      "description": "Total spin-up events in the last 24h. Higher values usually mean repeated wake triggers (scheduled tasks, scans, or app access) and more wear."
     },
     {
       "datasource": {
@@ -612,7 +621,8 @@
         }
       ],
       "title": "Log Scan Errors (30m)",
-      "type": "stat"
+      "type": "stat",
+      "description": "Exporter log-scan errors in the last 30 minutes. Non-zero means lifecycle event parsing is degraded and state metrics may be incomplete."
     },
     {
       "datasource": {
@@ -671,7 +681,8 @@
         }
       ],
       "title": "Last Log Scan Age (s)",
-      "type": "stat"
+      "type": "stat",
+      "description": "Seconds since exporter last successfully scanned lifecycle logs. Growing/stale values indicate log ingestion has stalled and freshness is reduced."
     }
   ],
   "refresh": "30s",
