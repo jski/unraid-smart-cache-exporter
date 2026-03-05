@@ -27,7 +27,7 @@ The build stage provides Python and a pre-created virtualenv (`/.venv`), and the
 ## Quick start (Unraid compose stack)
 
 1. Copy this folder to your Unraid appdata/project path.
-2. Use `examples/docker-compose.unraid.yml` (published image + `9903:9903` port mapping), or merge that service into your existing stack.
+2. Use `examples/docker-compose.unraid.yml` (includes published image + local `build` context fallback and `9903:9903` port mapping), or merge that service into your existing stack.
 3. Start stack.
 4. Verify:
 
