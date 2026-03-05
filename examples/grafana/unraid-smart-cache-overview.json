@@ -6,13 +6,6 @@
       "type": "datasource",
       "pluginId": "prometheus",
       "pluginName": "Prometheus"
-    },
-    {
-      "name": "DS_LOKI",
-      "label": "Loki",
-      "type": "datasource",
-      "pluginId": "loki",
-      "pluginName": "Loki"
     }
   ],
   "__requires": [
@@ -38,12 +31,6 @@
       "type": "panel",
       "id": "table",
       "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "logs",
-      "name": "Logs",
       "version": ""
     }
   ],
@@ -343,7 +330,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
         "y": 16
       },
@@ -402,40 +389,8 @@
     },
     {
       "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 24,
-        "x": 0,
-        "y": 24
-      },
-      "id": 8,
-      "options": {
-        "showTime": true,
-        "showLabels": false,
-        "showCommonLabels": false,
-        "wrapLogMessage": false,
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "dedupStrategy": "none",
-        "sortOrder": "Descending"
-      },
-      "targets": [
-        {
-          "expr": "{job=\"system-logs\",host=~\"$source_node\"} |~ \"emhttpd: (spinning down|spinning up|read SMART) /dev/sd[a-z]\"",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Recent Disk State Events (System Logs)",
-      "type": "logs"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOKI}"
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
       },
       "fieldConfig": {
         "defaults": {
@@ -445,9 +400,52 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 8,
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum by (disk, event) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]))",
+          "legendFormat": "{{disk}} {{event}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "title": "Disk State Event Counts (24h)",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
         "x": 0,
-        "y": 33
+        "y": 24
       },
       "id": 9,
       "options": {
@@ -463,13 +461,217 @@
       },
       "targets": [
         {
-          "expr": "sum by (device, event) (count_over_time({job=\"system-logs\",host=~\"$source_node\"} |~ \"emhttpd: (spinning down|spinning up|read SMART) /dev/sd[a-z]\" | regexp \"emhttpd: (?P<event>spinning down|spinning up|read SMART) /dev/(?P<device>sd[a-z])\" [24h]))",
-          "queryType": "instant",
+          "editorMode": "code",
+          "expr": "unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "legendFormat": "spin_state {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(unraid_disk_spin_state_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "legendFormat": "spin_state_age_h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(time() - unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "legendFormat": "hrs_since_spindown {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(time() - unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "legendFormat": "hrs_since_smart_read {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "D"
+        }
+      ],
+      "title": "Current Spin State + Last Event Age (hours)",
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 8
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 24
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(unraid_disk_event_total{source_node=~\"$source_node\",event=\"spinning up\",disk=~\"$disk\"}[24h]))",
           "refId": "A"
         }
       ],
-      "title": "Disk State Event Counts (24h)",
-      "type": "table"
+      "title": "Spin-Up Events (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 24
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(unraid_exporter_log_scan_errors_total{source_node=~\"$source_node\"}[30m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Log Scan Errors (30m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 120
+              },
+              {
+                "color": "red",
+                "value": 600
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 24
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max(time() - unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Last Log Scan Age (s)",
+      "type": "stat"
     }
   ],
   "refresh": "30s",
@@ -546,6 +748,6 @@
   "timezone": "",
   "title": "Unraid SMART Cache Exporter Overview",
   "uid": "unraid-smart-cache",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

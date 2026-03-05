@@ -48,3 +48,45 @@ groups:
           description: "No fresh SMART snapshot seen for over 24h. Validate Unraid SMART polling behavior for this disk."
           runbook_url: "https://github.com/jski/unraid-smart-cache-exporter#readme"
           triage_query: "unraid_smart_snapshot_age_seconds{disk=\"{{ $labels.disk }}\"}"
+
+      - alert: UnraidDiskSpinupBurst
+        expr: |
+          increase(unraid_disk_event_total{job="unraid-smart-cache-exporter", event="spinning up"}[24h]) > 8
+        for: 15m
+        labels:
+          severity: warning
+          signal: lifecycle
+          component: disk-state
+        annotations:
+          summary: "Unraid disk spin-up burst on {{ $labels.disk }}"
+          description: "Disk had more than 8 spin-up events in 24h. Investigate recurring wake triggers (scans, schedulers, app access)."
+          runbook_url: "https://github.com/jski/unraid-smart-cache-exporter#readme"
+          triage_query: "increase(unraid_disk_event_total{disk=\"{{ $labels.disk }}\",event=\"spinning up\"}[24h])"
+
+      - alert: UnraidLifecycleLogScanStale
+        expr: |
+          time() - unraid_exporter_last_successful_log_scan_timestamp_seconds{job="unraid-smart-cache-exporter"} > 600
+        for: 10m
+        labels:
+          severity: warning
+          signal: exporter
+          component: disk-state
+        annotations:
+          summary: "Unraid lifecycle log scan is stale"
+          description: "Exporter has not successfully scanned lifecycle logs for over 10 minutes. Check syslog mount/path and exporter health."
+          runbook_url: "https://github.com/jski/unraid-smart-cache-exporter#readme"
+          triage_query: "time() - unraid_exporter_last_successful_log_scan_timestamp_seconds"
+
+      - alert: UnraidLifecycleLogScanErrorsDetected
+        expr: |
+          increase(unraid_exporter_log_scan_errors_total{job="unraid-smart-cache-exporter"}[30m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          signal: exporter
+          component: disk-state
+        annotations:
+          summary: "Unraid lifecycle log scan errors detected"
+          description: "Exporter reported log scan errors in the last 30m. Validate syslog readability and state path persistence."
+          runbook_url: "https://github.com/jski/unraid-smart-cache-exporter#readme"
+          triage_query: "increase(unraid_exporter_log_scan_errors_total[30m])"
