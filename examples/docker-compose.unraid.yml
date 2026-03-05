@@ -14,7 +14,12 @@ services:
       - LISTEN_PORT=9903
       - SMART_DIR=/var/local/emhttp/smart
       - DISKS_INI=/var/local/emhttp/disks.ini
+      - SYSLOG_PATH=/var/log/syslog
+      - STATE_PATH=/var/lib/unraid-smart-cache-exporter/state.json
+      - SYSLOG_INITIAL_TAIL_BYTES=4194304
       - EXCLUDE_NON_PRESENT=true
     volumes:
       - /var/local/emhttp/smart:/var/local/emhttp/smart:ro
       - /var/local/emhttp/disks.ini:/var/local/emhttp/disks.ini:ro
+      - /var/log/syslog:/var/log/syslog:ro
+      - /mnt/user/appdata/unraid-smart-cache-exporter:/var/lib/unraid-smart-cache-exporter
