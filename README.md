@@ -37,12 +37,31 @@ curl -sS http://127.0.0.1:9903/healthz
 curl -sS http://127.0.0.1:9903/metrics | head -n 80
 ```
 
+## Install paths
+
+Choose one primary install path:
+
+1. Unraid CA template flow (recommended for app-style installs):
+   - Template metadata repo: `https://github.com/jski/unraid-smart-cache-exporter-unraid-template`
+   - App/image source repo: `https://github.com/jski/unraid-smart-cache-exporter`
+2. Docker compose flow:
+   - Use `examples/docker-compose.unraid.yml` from this repo.
+
 ## Alloy/Prometheus scrape target
 
 Use target:
 
 - `unraid:9903` (if your Alloy can resolve host alias), or
 - `<unraid-ip>:9903`
+
+## Image tag strategy
+
+- `pr-<number>`: ephemeral PR validation images.
+- `sha-<commit>`: immutable build promoted from merged PR artifact.
+- `latest`: current `main` promotion target.
+- `v*` tags (for example `v0.2.0`): promoted release tags.
+
+For stable environments, pin a release tag (`v*`) instead of `latest`.
 
 ## Key metrics
 
@@ -102,6 +121,12 @@ Exporter self-health metrics:
 - Event provenance is explicit in metric labels:
   - `event_source="explicit"` for parsed emhttpd lifecycle logs.
   - `event_source="inferred"` for fallback spin-up transitions inferred from disk counter deltas after a known down state.
+
+## Support scope
+
+- This project focuses on exporting Unraid SMART cache/lifecycle signals and compatible dashboard/alert assets.
+- It does not manage full Unraid storage policy, mover behavior, or application-specific tuning.
+- For host-specific behavior questions, include exporter metrics + relevant Unraid syslog snippets in issue reports.
 
 ## Dashboard and Alerting Assets
 

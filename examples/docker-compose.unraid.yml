@@ -2,7 +2,9 @@ name: unraid-smart-cache-exporter
 
 services:
   unraid-smart-cache-exporter:
+    # For stable installs, pin a release tag (e.g. v0.2.0) instead of latest.
     image: ghcr.io/jski/unraid-smart-cache-exporter:latest
+    # Local build fallback for contributors and troubleshooting.
     build:
       context: ../.
       dockerfile: Dockerfile
