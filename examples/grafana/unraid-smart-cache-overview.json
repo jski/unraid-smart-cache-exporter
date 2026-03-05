@@ -1177,7 +1177,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "time() - max(unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
+          "expr": "max(time() - unraid_exporter_last_successful_log_scan_timestamp_seconds{source_node=~\"$source_node\"})",
           "instant": true,
           "range": false,
           "refId": "A"
@@ -1534,6 +1534,77 @@
       "title": "Wake Churn Summary (24h)",
       "type": "table",
       "description": "Per-disk churn summary combining SMART lifecycle deltas and log-derived spin events to highlight wake-heavy disks."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "persist error"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "ok"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 40
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "min(unraid_exporter_state_persist_ok{source_node=~\"$source_node\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Exporter State Persistence",
+      "type": "stat",
+      "description": "Green means exporter state writes are succeeding. Red means state persistence failed on the latest scrape and lifecycle/event continuity may drift."
     }
   ],
   "refresh": "30s",
