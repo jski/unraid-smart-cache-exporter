@@ -210,7 +210,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} / 60",
+          "expr": "max by (disk) (unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} / 60)",
           "legendFormat": "{{disk}}",
           "range": false,
           "refId": "A",
@@ -219,7 +219,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} < bool 21600",
+          "expr": "max by (disk) (unraid_smart_snapshot_age_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} < bool 21600)",
           "legendFormat": "{{disk}}",
           "range": false,
           "refId": "B",
@@ -243,8 +243,15 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
               "instance": true,
               "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
               "source_node": true
             }
           }
@@ -605,7 +612,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "max by (disk) (unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"})",
           "legendFormat": "power_on_hours {{disk}}",
           "instant": true,
           "range": false,
@@ -614,7 +621,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}",
+          "expr": "max by (disk) (unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"})",
           "legendFormat": "start_stop {{disk}}",
           "instant": true,
           "range": false,
@@ -623,7 +630,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
           "legendFormat": "start_stop_delta_24h {{disk}}",
           "instant": true,
           "range": false,
@@ -632,7 +639,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
           "legendFormat": "power_on_hours_delta_24h {{disk}}",
           "instant": true,
           "range": false,
@@ -722,8 +729,15 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
               "instance": true,
               "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
               "source_node": true
             }
           }
@@ -901,7 +915,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "(time() - unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "expr": "max by (disk) ((time() - unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600)",
           "legendFormat": "hrs_since_spindown {{disk}}",
           "instant": true,
           "range": false,
@@ -910,7 +924,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "(time() - unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600",
+          "expr": "max by (disk) ((time() - unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"}) / 3600)",
           "legendFormat": "hrs_since_smart_read {{disk}}",
           "instant": true,
           "range": false,
@@ -919,7 +933,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000",
+          "expr": "max by (disk) (unraid_disk_last_spindown_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000)",
           "legendFormat": "last_spindown_ts {{disk}}",
           "instant": true,
           "range": false,
@@ -928,7 +942,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000",
+          "expr": "max by (disk) (unraid_disk_last_smart_read_timestamp_seconds{source_node=~\"$source_node\",disk=~\"$disk\"} * 1000)",
           "legendFormat": "last_smart_read_ts {{disk}}",
           "instant": true,
           "range": false,
@@ -961,8 +975,15 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
               "instance": true,
               "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
               "source_node": true
             }
           }
@@ -1255,8 +1276,15 @@
             "excludeByName": {
               "Time": true,
               "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
               "instance": true,
               "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
               "source_node": true
             },
             "renameByName": {
@@ -1468,7 +1496,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_start_stop_count{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
           "legendFormat": "start_stop_delta_24h {{disk}}",
           "instant": true,
           "range": false,
@@ -1477,7 +1505,7 @@
         },
         {
           "editorMode": "code",
-          "expr": "clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0)",
+          "expr": "max by (disk) (clamp_min(delta(unraid_smart_power_on_hours{source_node=~\"$source_node\",disk=~\"$disk\"}[24h]), 0))",
           "legendFormat": "power_on_hours_delta_24h {{disk}}",
           "instant": true,
           "range": false,
