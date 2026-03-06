@@ -1799,7 +1799,49 @@
       ],
       "title": "Spin State Duration Summary (24h, estimated)",
       "type": "table",
-      "description": "Estimated durations derived from inferred spin-state series. Avg stint is Up Time (24h) divided by spin-up count in 24h and is approximate."
+      "description": "Estimated durations derived from inferred spin-state series. Avg stint is Up Time (24h) divided by spin-up count in 24h and is approximate.",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
+              "instance": true,
+              "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk": "Disk",
+              "Value #A": "Up Time (24h)",
+              "Value #B": "Spin-Ups (24h)",
+              "Value #C": "Avg Up Stint (24h)"
+            }
+          }
+        }
+      ]
     }
   ],
   "refresh": "30s",
