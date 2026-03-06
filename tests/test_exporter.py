@@ -202,6 +202,41 @@ class ExporterTests(unittest.TestCase):
         self.assertIn(needle, first)
         self.assertIn(needle, second)
 
+    def test_scan_syslog_read_smart_marks_up_when_prior_down(self):
+        state = exporter._event_state_default()
+        state["spin_state"] = {
+            "disk3": {
+                "device": "sde",
+                "state": "down",
+                "last_change_ts": 100.0,
+                "state_source": "explicit",
+                "confidence": "high",
+            }
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            syslog = Path(tmp) / "syslog.log"
+            syslog.write_text("Mar  5 03:49:34 unraid emhttpd: read SMART /dev/sde\n", encoding="utf-8")
+            out = exporter._scan_syslog_events(
+                syslog,
+                state,
+                {"sde": "disk3"},
+                datetime(2026, 3, 5, 9, 0, 0, tzinfo=timezone.utc).timestamp(),
+                1024 * 1024,
+            )
+
+        spin = out.get("spin_state", {})
+        assert isinstance(spin, dict)
+        disk3 = spin.get("disk3", {})
+        assert isinstance(disk3, dict)
+        self.assertEqual(disk3.get("state"), "up")
+        self.assertEqual(disk3.get("state_source"), "read_smart")
+        self.assertEqual(disk3.get("confidence"), "medium")
+
+        events = out.get("event_totals", {})
+        assert isinstance(events, dict)
+        self.assertEqual(events.get("disk3|sde|read SMART|explicit"), 1)
+
     def test_infer_spinup_from_counter_delta_when_state_down(self):
         state = exporter._event_state_default()
         state["spin_state"] = {

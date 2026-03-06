@@ -482,6 +482,19 @@ def _scan_syslog_events(
                 "state_source": "explicit",
                 "confidence": "high",
             }
+        elif event == "read SMART":
+            # SMART reads imply the disk was accessed. When we were previously
+            # down/unknown, promote to up with lower confidence.
+            prior = spin_state.get(disk, {}) if isinstance(spin_state.get(disk), dict) else {}
+            prior_state = str(prior.get("state", "unknown"))
+            if prior_state in {"down", "unknown"}:
+                spin_state[disk] = {
+                    "device": device,
+                    "state": "up",
+                    "last_change_ts": event_ts,
+                    "state_source": "read_smart",
+                    "confidence": "medium" if prior_state == "down" else "low",
+                }
 
     state["event_totals"] = event_totals
     state["last_event_ts"] = last_event_ts
