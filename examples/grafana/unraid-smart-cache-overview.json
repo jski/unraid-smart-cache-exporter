@@ -1605,6 +1605,243 @@
       "title": "Exporter State Persistence",
       "type": "stat",
       "description": "Green means exporter state writes are succeeding. Red means state persistence failed on the latest scrape and lifecycle/event continuity may drift."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Step-line trend of inferred disk UP/DOWN/UNKNOWN state over 24h. Uses carry-forward and unknown fallback when explicit spin transitions are missing.",
+      "fieldConfig": {
+        "defaults": {
+          "min": -1,
+          "max": 1,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "unknown",
+                  "color": "gray"
+                },
+                "0": {
+                  "text": "down",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "up",
+                  "color": "orange"
+                }
+              }
+            }
+          ],
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 22,
+            "spanNulls": true,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 8,
+        "y": 40
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "((max by (disk) (last_over_time(unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}[30m]))) or on(disk) (-1 * max by (disk) (unraid_disk_info{source_node=~\"$source_node\",disk=~\"$disk\"})))",
+          "legendFormat": "{{disk}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Spin State Trend (24h, inferred)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 90
+              },
+              {
+                "id": "custom.minWidth",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Up Time (24h)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Spin-Ups (24h)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Avg Up Stint (24h)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "h"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 46
+      },
+      "id": 18,
+      "options": {
+        "showHeader": true,
+        "frozenColumns": {
+          "left": 1
+        },
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "24 * avg_over_time((max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}) == bool 1)[24h:5m])",
+          "legendFormat": "up_time_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "floor(clamp_min(sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h])), 0))",
+          "legendFormat": "spinups_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "B"
+        },
+        {
+          "editorMode": "code",
+          "expr": "(24 * avg_over_time((max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}) == bool 1)[24h:5m])) / clamp_min(sum by (disk) (increase(unraid_disk_event_total{source_node=~\"$source_node\",disk=~\"$disk\",event=\"spinning up\"}[24h])), 1)",
+          "legendFormat": "avg_up_stint_24h {{disk}}",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "C"
+        }
+      ],
+      "title": "Spin State Duration Summary (24h, estimated)",
+      "type": "table",
+      "description": "Estimated durations derived from inferred spin-state series. Avg stint is Up Time (24h) divided by spin-up count in 24h and is approximate.",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "env": true,
+              "host": true,
+              "host_instance": true,
+              "hostname": true,
+              "instance": true,
+              "job": true,
+              "platform": true,
+              "role": true,
+              "site": true,
+              "source_node": true
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "disk": "Disk",
+              "Value #A": "Up Time (24h)",
+              "Value #B": "Spin-Ups (24h)",
+              "Value #C": "Avg Up Stint (24h)"
+            }
+          }
+        }
+      ]
     }
   ],
   "refresh": "30s",

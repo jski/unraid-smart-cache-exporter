@@ -335,7 +335,9 @@ def _event_state_default() -> Dict[str, object]:
         "last_event_ts": {},
         "spin_state": {},
         "disk_counters": {},
+        "snapshot_mtimes": {},
         "inferred_transitions_total": 0,
+        "snapshot_inferred_transitions_total": 0,
         "parse_errors_total": 0,
         "scan_errors_total": 0,
         "last_successful_log_scan_ts": 0.0,
@@ -371,11 +373,11 @@ def _load_event_state(path: Path) -> Dict[str, object]:
             "offset": int(payload["log_cursor"].get("offset", 0) or 0),
         }
 
-    for key in ("event_totals", "last_event_ts", "spin_state", "disk_counters"):
+    for key in ("event_totals", "last_event_ts", "spin_state", "disk_counters", "snapshot_mtimes"):
         if isinstance(payload.get(key), dict):
             state[key] = payload[key]
 
-    for key in ("parse_errors_total", "scan_errors_total", "inferred_transitions_total"):
+    for key in ("parse_errors_total", "scan_errors_total", "inferred_transitions_total", "snapshot_inferred_transitions_total"):
         try:
             state[key] = int(payload.get(key, 0) or 0)
         except (TypeError, ValueError):
@@ -482,6 +484,19 @@ def _scan_syslog_events(
                 "state_source": "explicit",
                 "confidence": "high",
             }
+        elif event == "read SMART":
+            # SMART reads imply the disk was accessed. When we were previously
+            # down/unknown, promote to up with lower confidence.
+            prior = spin_state.get(disk, {}) if isinstance(spin_state.get(disk), dict) else {}
+            prior_state = str(prior.get("state", "unknown"))
+            if prior_state in {"down", "unknown"}:
+                spin_state[disk] = {
+                    "device": device,
+                    "state": "up",
+                    "last_change_ts": event_ts,
+                    "state_source": "read_smart",
+                    "confidence": "medium" if prior_state == "down" else "low",
+                }
 
     state["event_totals"] = event_totals
     state["last_event_ts"] = last_event_ts
@@ -489,6 +504,64 @@ def _scan_syslog_events(
     state["parse_errors_total"] = parse_errors_total
     state["log_cursor"] = {"inode": int(stat_info.st_ino), "offset": int(new_offset)}
     state["last_successful_log_scan_ts"] = now
+    return state
+
+
+def _infer_spinup_from_snapshot_freshness(
+    state: Dict[str, object],
+    snapshots: List[SmartSnapshot],
+    now: float,
+) -> Dict[str, object]:
+    # Infer spin-up transitions when SMART snapshot mtime advances while prior
+    # state is down/unknown. This provides a low-confidence fallback for hosts
+    # that do not emit explicit spinning-up lifecycle logs.
+    event_totals = state.get("event_totals", {}) if isinstance(state.get("event_totals"), dict) else {}
+    last_event_ts = state.get("last_event_ts", {}) if isinstance(state.get("last_event_ts"), dict) else {}
+    spin_state = state.get("spin_state", {}) if isinstance(state.get("spin_state"), dict) else {}
+    prev_mtimes = state.get("snapshot_mtimes", {}) if isinstance(state.get("snapshot_mtimes"), dict) else {}
+    next_mtimes: Dict[str, float] = {}
+    inferred_total = int(state.get("snapshot_inferred_transitions_total", 0) or 0)
+
+    for snapshot in snapshots:
+        disk = snapshot.disk
+        current_mtime = float(snapshot.mtime)
+        next_mtimes[disk] = current_mtime
+
+        try:
+            prev_mtime = float(prev_mtimes.get(disk, 0.0) or 0.0)
+        except (TypeError, ValueError):
+            prev_mtime = 0.0
+
+        # Need a baseline before we can infer transitions from mtime movement.
+        if prev_mtime <= 0.0 or current_mtime <= prev_mtime:
+            continue
+
+        prior = spin_state.get(disk, {}) if isinstance(spin_state.get(disk), dict) else {}
+        prior_state = str(prior.get("state", "unknown"))
+        if prior_state not in {"down", "unknown"}:
+            continue
+
+        device = str(prior.get("device", ""))
+        key = _event_key(disk=disk, device=device, event="spinning up", event_source="snapshot_freshness")
+        event_totals[key] = int(event_totals.get(key, 0) or 0) + 1
+        prev_ts = float(last_event_ts.get(key, 0.0) or 0.0)
+        if now > prev_ts:
+            last_event_ts[key] = now
+
+        spin_state[disk] = {
+            "device": device,
+            "state": "up",
+            "last_change_ts": now,
+            "state_source": "snapshot_freshness",
+            "confidence": "low",
+        }
+        inferred_total += 1
+
+    state["event_totals"] = event_totals
+    state["last_event_ts"] = last_event_ts
+    state["spin_state"] = spin_state
+    state["snapshot_mtimes"] = next_mtimes
+    state["snapshot_inferred_transitions_total"] = inferred_total
     return state
 
 
@@ -576,6 +649,7 @@ def render_metrics() -> str:
     try:
         event_state = _scan_syslog_events(SYSLOG_PATH, event_state, device_to_disk, now, SYSLOG_INITIAL_TAIL_BYTES)
         event_state = _infer_spinup_from_disk_counters(event_state, disks, now)
+        event_state = _infer_spinup_from_snapshot_freshness(event_state, snapshots, now)
     except Exception:
         event_state["scan_errors_total"] = int(event_state.get("scan_errors_total", 0) or 0) + 1
     state_persist_ok = 1
@@ -662,8 +736,10 @@ def render_metrics() -> str:
     lines.append("# TYPE unraid_exporter_log_cursor_offset_bytes gauge")
     lines.append("# HELP unraid_exporter_log_lag_seconds Age since newest observed lifecycle event.")
     lines.append("# TYPE unraid_exporter_log_lag_seconds gauge")
-    lines.append("# HELP unraid_exporter_inferred_transitions_total Number of inferred spin-up transitions.")
+    lines.append("# HELP unraid_exporter_inferred_transitions_total Number of IO-counter inferred spin-up transitions.")
     lines.append("# TYPE unraid_exporter_inferred_transitions_total counter")
+    lines.append("# HELP unraid_exporter_snapshot_inferred_transitions_total Number of SMART-snapshot inferred spin-up transitions.")
+    lines.append("# TYPE unraid_exporter_snapshot_inferred_transitions_total counter")
     lines.append("# HELP unraid_exporter_state_persist_ok Whether exporter state persistence succeeded on latest scrape (1=ok, 0=error).")
     lines.append("# TYPE unraid_exporter_state_persist_ok gauge")
     lines.append("# HELP unraid_exporter_state_persist_errors_total Number of exporter state persistence failures.")
@@ -816,6 +892,10 @@ def render_metrics() -> str:
     lines.append(f"unraid_exporter_last_successful_log_scan_timestamp_seconds {last_scan:.0f}")
     lines.append(f"unraid_exporter_log_cursor_offset_bytes {cursor_offset}")
     lines.append(f'unraid_exporter_inferred_transitions_total {int(event_state.get("inferred_transitions_total", 0) or 0)}')
+    lines.append(
+        f'unraid_exporter_snapshot_inferred_transitions_total '
+        f'{int(event_state.get("snapshot_inferred_transitions_total", 0) or 0)}'
+    )
     lines.append(f"unraid_exporter_state_persist_ok {state_persist_ok}")
     lines.append(f"unraid_exporter_state_persist_errors_total {STATE_PERSIST_ERRORS_TOTAL}")
     lines.append(f"unraid_exporter_last_state_persist_error_timestamp_seconds {LAST_STATE_PERSIST_ERROR_TS:.0f}")
