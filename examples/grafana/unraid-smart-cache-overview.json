@@ -32,6 +32,12 @@
       "id": "table",
       "name": "Table",
       "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "state-timeline",
+      "name": "State timeline",
+      "version": ""
     }
   ],
   "annotations": {
@@ -1605,6 +1611,85 @@
       "title": "Exporter State Persistence",
       "type": "stat",
       "description": "Green means exporter state writes are succeeding. Red means state persistence failed on the latest scrape and lifecycle/event continuity may drift."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Visual 24h UP/DOWN/UNKNOWN timeline derived from exporter lifecycle inference. Accuracy depends on available Unraid lifecycle logs/events.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "unknown",
+                  "color": "gray"
+                },
+                "0": {
+                  "text": "down",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "up",
+                  "color": "orange"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 8,
+        "y": 40
+      },
+      "id": 17,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "hidden",
+          "placement": "bottom"
+        },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "never",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})",
+          "legendFormat": "{{disk}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Spin State Timeline (24h, inferred)",
+      "type": "state-timeline"
     }
   ],
   "refresh": "30s",
