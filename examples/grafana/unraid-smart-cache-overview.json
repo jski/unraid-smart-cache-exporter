@@ -32,12 +32,6 @@
       "id": "table",
       "name": "Table",
       "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "state-timeline",
-      "name": "State timeline",
-      "version": ""
     }
   ],
   "annotations": {
@@ -1617,9 +1611,11 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Visual 24h UP/DOWN/UNKNOWN timeline derived from exporter lifecycle inference. Uses last_over_time carry-forward with unknown fallback when no spin-state series exists.",
+      "description": "Step-line trend of inferred disk UP/DOWN/UNKNOWN state over 24h. Uses carry-forward and unknown fallback when explicit spin transitions are missing.",
       "fieldConfig": {
         "defaults": {
+          "min": -1,
+          "max": 1,
           "mappings": [
             {
               "type": "value",
@@ -1639,21 +1635,13 @@
               }
             }
           ],
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              }
-            ]
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 22,
+            "spanNulls": true,
+            "showPoints": "never"
           }
         },
         "overrides": []
@@ -1667,12 +1655,9 @@
       "id": 17,
       "options": {
         "legend": {
-          "displayMode": "hidden",
-          "placement": "bottom"
+          "displayMode": "list",
+          "placement": "right"
         },
-        "mergeValues": true,
-        "rowHeight": 0.9,
-        "showValue": "never",
         "tooltip": {
           "mode": "single",
           "sort": "none"
@@ -1687,8 +1672,8 @@
           "refId": "A"
         }
       ],
-      "title": "Spin State Timeline (24h, inferred)",
-      "type": "state-timeline"
+      "title": "Spin State Trend (24h, inferred)",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",
