@@ -1617,7 +1617,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Visual 24h UP/DOWN/UNKNOWN timeline derived from exporter lifecycle inference. Accuracy depends on available Unraid lifecycle logs/events.",
+      "description": "Visual 24h UP/DOWN/UNKNOWN timeline derived from exporter lifecycle inference. Uses last_over_time carry-forward with unknown fallback when no spin-state series exists.",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -1666,7 +1666,6 @@
       },
       "id": 17,
       "options": {
-        "alignValue": "left",
         "legend": {
           "displayMode": "hidden",
           "placement": "bottom"
@@ -1682,7 +1681,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "max by (disk) (unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"})",
+          "expr": "((max by (disk) (last_over_time(unraid_disk_spin_state{source_node=~\"$source_node\",disk=~\"$disk\"}[30m]))) or on(disk) (-1 * max by (disk) (unraid_disk_info{source_node=~\"$source_node\",disk=~\"$disk\"})))",
           "legendFormat": "{{disk}}",
           "range": true,
           "refId": "A"
