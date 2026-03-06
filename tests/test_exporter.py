@@ -237,6 +237,42 @@ class ExporterTests(unittest.TestCase):
         assert isinstance(events, dict)
         self.assertEqual(events.get("disk3|sde|read SMART|explicit"), 1)
 
+    def test_infer_spinup_from_snapshot_mtime_when_state_down(self):
+        state = exporter._event_state_default()
+        state["spin_state"] = {
+            "disk3": {
+                "device": "sde",
+                "state": "down",
+                "last_change_ts": 100.0,
+                "state_source": "explicit",
+                "confidence": "high",
+            }
+        }
+        state["snapshot_mtimes"] = {"disk3": 1000.0}
+
+        snapshots = [
+            exporter.SmartSnapshot(
+                disk="disk3",
+                mtime=1010.0,
+                attrs={},
+            )
+        ]
+
+        out = exporter._infer_spinup_from_snapshot_freshness(state, snapshots, 1234.0)
+
+        events = out.get("event_totals", {})
+        assert isinstance(events, dict)
+        self.assertEqual(events.get("disk3|sde|spinning up|snapshot_freshness"), 1)
+
+        spin = out.get("spin_state", {})
+        assert isinstance(spin, dict)
+        disk3 = spin.get("disk3", {})
+        assert isinstance(disk3, dict)
+        self.assertEqual(disk3.get("state"), "up")
+        self.assertEqual(disk3.get("state_source"), "snapshot_freshness")
+        self.assertEqual(disk3.get("confidence"), "low")
+        self.assertEqual(int(out.get("snapshot_inferred_transitions_total", 0)), 1)
+
     def test_infer_spinup_from_counter_delta_when_state_down(self):
         state = exporter._event_state_default()
         state["spin_state"] = {
